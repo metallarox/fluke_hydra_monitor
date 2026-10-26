@@ -87,6 +87,40 @@ Same acquisition as LIVE, with a scrolling history chart instead of the meter.
 The Y axis uses an SI prefix chosen from the data (mV, kΩ, …). A dashed line shows the mean of the
 visible points; overload readings break the line.
 
+### MULTI-CHANNEL
+
+![Multi-channel](screenshots/multi_sweep.png)
+
+When MULTI-CHANNEL is selected, the *Channel* section of the sidebar shows how many channels
+are enabled, the acquisition **Method** and **Configure channels…**.
+
+**Channel setup.** One row per channel with Use, Function, Range and Wires, plus the colour of
+its trace. CH0–CH10 are on the left and CH11–CH20 on the right, so CH n+10 sits beside CH n:
+a 4-wire measurement on CH n uses CH n+10 for the sense leads, and the window warns if both are
+enabled. The setup is saved in `~/.config/fluke_hydra_monitor/channels.json` and restored at the
+next start of the program.
+
+![Channel setup](screenshots/multi_setup.png)
+
+**Methods**
+
+| Method | How it works | Notes |
+|---|---|---|
+| Sweep (Monitor) | For each channel: `MON 1,ch`, wait 0.3 s, discard one `MON_VAL?` (it may still belong to the previous channel), read `MON_VAL?`. | Uses only commands verified on a real unit. Each channel takes a fraction of a second, so a sweep of N channels takes roughly N × 0.4 s or more; if the period is shorter, sweeps simply run back to back. |
+| Hydra scan (exp.) | The Hydra scans on its own (`INTVL`, `TRIGGER 1`, `SCAN 1`); every period the software reads `LAST? ch` for each channel. | Experimental: the syntax still has to be confirmed on a real unit. Period rounded to whole seconds. Channels configured on the Hydra but not enabled here are scanned too (but not read). |
+
+**Tiles.** One tile per enabled channel with its colour, value and function. Click a tile to show
+that channel in the big readout (with its own statistics); click ◉ / ○ to show or hide its trace.
+
+**Chart.** One trace per channel with a legend. When all channels share a unit the axis uses it
+(with SI prefix); with mixed functions **Normalize** is switched on automatically: each trace is
+scaled to its own min…max over the visible window (0–100 %) and the legend shows that real range.
+
+![Mixed functions](screenshots/multi_hscan.png)
+
+**CSV.** *Record to CSV* writes one row per scan and one column per channel; a channel whose read
+failed in that scan is left empty. The status line reports missed reads.
+
 ### Trigger + LAST?
 
 At every period the software sends `*TRG` and then `LAST? ch`. Intended for setups where the

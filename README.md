@@ -6,12 +6,13 @@
 
 <p align="center">
   A modern Linux front-end for the <b>Fluke Hydra 2620A / 2625A</b> data acquisition unit over RS-232:<br>
-  big digital readout, a damped <b>analog moving-coil meter</b>, a live <b>auto-scaling chart</b> and CSV logging.
+  big digital readout, a damped <b>analog moving-coil meter</b>, a live <b>auto-scaling chart</b>,
+  <b>multi-channel</b> acquisition and CSV logging.
 </p>
 
 <p align="center">
   <img src="docs/screenshots/live.png" width="49%" alt="LIVE mode with analog meter">
-  <img src="docs/screenshots/monitor.png" width="49%" alt="MONITOR mode with chart">
+  <img src="docs/screenshots/multi_sweep.png" width="49%" alt="MULTI-CHANNEL mode">
 </p>
 
 The original Fluke software is DOS/Windows-era and hard to run today. This is a single Python
@@ -22,10 +23,19 @@ else installed.
 
 - **All Hydra functions**: V DC, V AC, Ω (2- and 4-wire), frequency, thermocouples (J K E T N R S B C), Pt100 RTD.
 - **21 channels**, with **CH0 = front-panel input** clearly marked in the UI.
-- **Three acquisition modes**
+- **Four acquisition modes**
   - **LIVE**: digital readout + analog meter, using the Hydra's *Monitor* function.
   - **MONITOR (chart)**: digital readout + scrolling history chart.
   - **Trigger + LAST?**: explicit `*TRG` followed by `LAST? ch`, for scan-based setups.
+  - **MULTI-CHANNEL**: any set of the 21 channels, each with its own function and range,
+    shown as live tiles and as one trace per channel on the chart.
+- **Multi-channel acquisition** with two methods:
+  - **Sweep (Monitor)**: the software moves the Hydra's Monitor from channel to channel
+    (`MON` / `MON_VAL?` only, the same commands as LIVE).
+  - **Hydra scan (experimental)**: the instrument scans on its own interval and the software reads `LAST?`.
+  - Channel setup window (saved in `~/.config/fluke_hydra_monitor/channels.json`) with 4-wire pairing checks,
+    per-channel colours and statistics, show/hide per trace, **Normalize** view for mixed functions,
+    wide CSV (one row per scan, one column per channel).
 - **Analog meter** drawn like a classic panel instrument: cream dial, anti-parallax mirror,
   2nd-order needle dynamics (slight overshoot), end-stop bounce, OL lamp.
   - Automatic **1-3-10-30 range switching** with hysteresis (up at once, down after 4 readings), or **Lock range**.
@@ -100,6 +110,10 @@ Simulator options: `--volts`, `--amplitude`, `--period`, `--overload-every N`.
 |---|---|
 | ![Centre-zero scale](docs/screenshots/live_bipolar.png) | ![Overload](docs/screenshots/live_ol.png) |
 | Negative input: the meter switches to a ±3 V centre-zero scale | Overload: needle on the end stop, OL lamp, red readout |
+| ![Chart](docs/screenshots/monitor.png) | ![Mixed functions, normalized](docs/screenshots/multi_hscan.png) |
+| MONITOR: scrolling chart with smart autoscale | MULTI-CHANNEL with V, Ω, °C and Hz, normalized view |
+| ![Channel setup](docs/screenshots/multi_setup.png) | |
+| Channel setup: CH n+10 sits beside CH n (4-wire pairs) | |
 
 ## CSV format
 
@@ -110,6 +124,15 @@ timestamp,channel,function,value,unit
 
 Values are always in base units (V, Ω, Hz, °C/°F as set on the Hydra). Overload readings have an empty `value`.
 
+In MULTI-CHANNEL mode, *Record to CSV* writes a **wide** file, one row per scan:
+
+```
+timestamp,CH00 V DC (V),CH03 Ohm (Ω),CH07 Thermocouple (°C/°F)
+2026-10-26T17:55:21.004,0.0143606,1301.2,25.295
+```
+
+The timestamp is the start of the scan; *Export CSV…* always uses the long format above.
+
 ## Documentation
 
 - [docs/USER_GUIDE.md](docs/USER_GUIDE.md): full description of the interface and of every mode
@@ -119,7 +142,9 @@ Values are always in base units (V, Ω, Hz, °C/°F as set on the Hydra). Overlo
 
 - The overrange value is assumed to be ≥ 9E+9 (constant `OVERLOAD`); check what your unit returns with an open Ω input.
 - *Trigger + LAST?* does not enable scanning; depending on the Hydra trigger configuration a `SCAN 1` / `TRIGGER` setup may be needed.
-- One channel at a time; multi-channel scanning is a natural next step.
+- *Hydra scan* uses `INTVL h,m,s`, `TRIGGER 1`, `SCAN 1` and `LAST? ch`; this syntax still has to be confirmed
+  on a real unit. The strings are constants at the top of the script (`HYDRA_SCAN_*`).
+  *Sweep (Monitor)* uses only commands already verified and is the default.
 
 ---
 

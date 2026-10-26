@@ -36,6 +36,12 @@ A command without a prompt within the timeout raises `TimeoutError`.
 | `MON 1,ch` | start LIVE / MONITOR | enable Monitor on the channel |
 | `MON_VAL?` | every period | read the Monitor value (timeout 2.5 s) |
 | `*TRG` + `LAST? ch` | every period, Trigger mode | trigger and read the last scan value |
+| `MON 1,ch` + `MON_VAL?` ×2 | every channel, MULTI / Sweep | move the Monitor, discard the first value, read |
+| `INTVL h,m,s` · `TRIGGER 1` · `SCAN 1` | start, MULTI / Hydra scan (**unverified**) | instrument-paced scanning |
+| `LAST? ch` | every channel, MULTI / Hydra scan | last scanned value of the channel |
+
+The Hydra-scan strings are the constants `HYDRA_SCAN_START`, `HYDRA_SCAN_STOP` and
+`HYDRA_SCAN_READ` at the top of `fluke_hydra_monitor.py`; adjust them if your unit answers `?>`.
 
 Readings are parsed with a regular expression for a signed float with optional exponent.
 Values with magnitude ≥ 9E+9, or responses containing `OL`, are treated as overload (NaN).
@@ -58,6 +64,11 @@ Values with magnitude ≥ 9E+9, or responses containing `OL`, are treated as ove
 - The worker remembers which `(channel, FUNC command)` is loaded; **Start** reconfigures only if it changed.
 - Reads are scheduled as `next += period`; if the schedule falls behind it restarts from now.
 - Errors during periodic reads are retried up to `MAX_RETRY` (3) times before the run is stopped.
+- In MULTI-CHANNEL the worker reads **one channel per loop iteration**, so Stop and window close
+  are handled between channels even during a long sweep. A channel whose read fails is skipped
+  for that scan (empty in the CSV) and counts towards the retry limit.
+- Serial reads return as soon as bytes are available (`read(in_waiting or 1)`), so a command
+  costs only the instrument's response time.
 - On window close the GUI enqueues `quit` and waits up to 3 s for the worker to send `MON 0` and close the port.
 
 ## Analog meter model
