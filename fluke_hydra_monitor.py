@@ -53,8 +53,9 @@ NUM_RE = re.compile(r'[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:E[+-]?\d+)?', re.I)
 OVERLOAD = 9e9      # the Hydra reports overrange as a huge value (+9E+9): check on your unit
 FRONT_LABEL = '0 · Front'   # CH0 = front-panel input jacks
 CHANNELS = [FRONT_LABEL] + [str(i) for i in range(1, 21)]
+NET_BRIDGE = 'socket://hydra.local:2625'   # Hydra Web (ESP8266) serial bridge
 ASSETS = Path(__file__).resolve().parent / 'assets'
-__version__ = '1.1.0'
+__version__ = '1.2.0'
 MAX_RETRY = 3       # consecutive failed reads tolerated before stopping
 
 # --- multi-channel
@@ -103,9 +104,11 @@ def fmt_value(val, mode, digits=6):
 
 class Instrument:
     def __init__(self, port):
-        self.ser = serial.Serial(port=port, baudrate=9600, bytesize=8,
-                                 parity='N', stopbits=1, timeout=0.10,
-                                 xonxoff=False, rtscts=False, dsrdtr=False)
+        # A device path (/dev/ttyUSB0, COM3) or a network URL such as
+        # socket://hydra.local:2625 (the Hydra Web bridge on the ESP8266).
+        self.ser = serial.serial_for_url(port, baudrate=9600, bytesize=8,
+                                         parity='N', stopbits=1, timeout=0.10,
+                                         xonxoff=False, rtscts=False, dsrdtr=False)
         self.ser.write(b'\x03')          # Ctrl-C: cancel any pending command
         self.ser.flush()
         time.sleep(.3)
@@ -768,7 +771,7 @@ class App:
 
     def _refresh_ports(self):
         ports = [p.device for p in list_ports.comports()]
-        self.ports['values'] = ports
+        self.ports['values'] = ports + [NET_BRIDGE]
         if ports and self.port.get() not in ports:
             self.port.set(ports[0])
 

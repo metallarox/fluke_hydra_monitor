@@ -1,0 +1,635 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0e1014">
+<title>Hydra 2625A · Web</title>
+<link rel="icon" href="{{LOGO}}">
+<style>
+:root{--bg:#0e1014;--panel:#161920;--panel2:#1e222b;--border:#2a2f3a;--text:#e7e9ee;--muted:#8b93a1;
+--accent:#ffc20e;--accent-hi:#ffd54a;--green:#3ddc84;--red:#ff5252;--plot:#11141a;
+--ui:Inter,"Segoe UI",Roboto,Cantarell,"Noto Sans","DejaVu Sans",sans-serif;
+--mono:"JetBrains Mono","DejaVu Sans Mono",Menlo,Consolas,monospace}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);font:14px/1.4 var(--ui)}
+button,select,input{font:inherit;color:inherit}
+.shell{padding:14px;max-width:1500px;margin:0 auto}
+header{display:flex;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap}
+header img{width:48px;height:48px}
+header h1{font-size:22px;margin:0;letter-spacing:.3px}
+header .sub{color:var(--muted);font-size:13px;margin-top:4px}
+header .right{margin-left:auto;display:flex;align-items:center;gap:8px;color:var(--muted);font-size:13px}
+.led{width:11px;height:11px;border-radius:50%;background:#3a3f4a;transition:background .1s}
+.body{display:flex;gap:12px;align-items:stretch}
+aside{width:300px;flex:none;background:var(--panel);padding:4px 16px 16px;border-radius:6px;display:flex;flex-direction:column}
+main{flex:1;min-width:0;display:flex;flex-direction:column;gap:12px}
+.sec{color:var(--muted);font-size:11.5px;font-weight:700;letter-spacing:.6px;margin:16px 0 8px}
+.grid2{display:grid;grid-template-columns:auto 1fr;gap:8px 10px;align-items:center}
+.grid2 label{color:var(--muted)}
+select,input[type=text],input[type=password],input[type=number]{background:var(--panel2);border:1px solid var(--border);
+ border-radius:4px;padding:6px 8px;width:100%;outline:none;min-width:0}
+select:focus,input:focus{border-color:var(--accent)}
+select:disabled,input:disabled{background:var(--panel);color:#555b66}
+input[type=checkbox]{accent-color:var(--accent);width:15px;height:15px;vertical-align:-2px;margin:0 6px 0 0}
+.btn{background:var(--panel2);border:0;border-radius:4px;padding:8px 12px;cursor:pointer;width:100%}
+.btn:hover{background:#272c37}.btn:active{background:var(--border)}
+.btn.accent{background:var(--accent);color:#111;font-weight:700}.btn.accent:hover{background:var(--accent-hi)}
+.btn.stop{background:var(--red);color:#111;font-weight:700}
+.btn:disabled{opacity:.45;cursor:default}
+.row{display:flex;gap:6px;margin-top:8px}
+.note{color:#b08a3c;font-size:11px;margin-top:auto;padding-top:16px}
+.muted{color:var(--muted)}
+.card{background:var(--panel);border-radius:6px;padding:14px 22px}
+.chips{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.chip{background:var(--panel2);padding:3px 9px;font-size:12px;font-weight:700;border-radius:3px}
+.chips .cfg{margin-left:auto;color:var(--muted);font-size:13px}
+.reading{display:flex;align-items:baseline;gap:14px;margin-top:2px;flex-wrap:wrap}
+.value{font:700 64px/1.15 var(--mono);color:var(--accent);white-space:nowrap}
+.value.ol{color:var(--red)}
+.unit{font-size:26px}
+.stats{font:13px var(--mono);color:var(--muted);min-height:18px}
+.view{display:flex;flex-direction:column;gap:12px;flex:1;min-height:0}
+.bar{display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap}
+.bar .sec{margin:0}
+.bar .grow{flex:1}
+.bar input[type=text]{width:80px}
+.bar select{width:auto}
+canvas{display:block;width:100%}
+#gauge{height:440px}
+#chart{height:400px;background:var(--panel)}
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.tile{background:var(--panel2);border:2px solid var(--panel2);border-radius:4px;cursor:pointer;overflow:hidden}
+.tile.focus{border-color:var(--accent)}
+.tile .strip{height:4px}
+.tile .head{display:flex;justify-content:space-between;padding:6px 10px 0;color:var(--muted);font-size:11.5px;font-weight:700}
+.tile .eye{font-size:15px;line-height:1;cursor:pointer}
+.tile .v{font:700 17px var(--mono);padding:0 10px;white-space:nowrap}
+.tile .v.ol{color:var(--red)}
+.tile .f{color:var(--muted);font-size:11.5px;padding:0 10px 8px}
+.status{color:var(--muted);font-size:12.5px;min-height:18px}
+.banner{background:#3a2c08;color:var(--accent);padding:8px 14px;border-radius:6px;display:none}
+.hidden{display:none!important}
+dialog{background:var(--panel);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:18px;max-width:96vw}
+dialog::backdrop{background:#000a}
+dialog h2{font-size:15px;margin:0 0 12px}
+table.setup{border-collapse:collapse}
+table.setup th{color:var(--muted);font-size:11px;text-align:left;padding:0 5px 6px;letter-spacing:.5px}
+table.setup td{padding:2px 5px}
+table.setup select{width:auto}
+.sw{display:inline-block;width:14px;height:14px;border-radius:2px;vertical-align:middle}
+.dlgbar{display:flex;gap:8px;align-items:center;margin-top:14px}
+.dlgbar .msg{flex:1;color:#d0a33f;font-size:12px}
+.dlgbar .btn{width:auto}
+#conOut{background:var(--plot);font:12.5px var(--mono);height:260px;width:min(560px,90vw);overflow:auto;padding:10px;white-space:pre-wrap;border-radius:4px}
+@media (max-width:900px){.body{flex-direction:column}aside{width:auto;order:2}main{order:1}.value{font-size:44px}#gauge{height:300px}#chart{height:300px}
+ .setupwrap{overflow:auto;max-height:70vh}}
+</style>
+</head>
+<body>
+<div class="shell">
+<header>
+ <img id="logo" alt="IV3HGA">
+ <div><h1>HYDRA 2625A</h1><div class="sub">Fluke data acquisition · Web · <span id="fw">—</span> · IV3HGA</div></div>
+ <div class="right"><div class="led" id="led"></div><span id="ident">connecting…</span></div>
+</header>
+<div class="body">
+<aside>
+ <div class="sec">DEVICE</div>
+ <div class="grid2">
+  <label>Network</label><span id="net">—</span>
+  <label>Hydra</label><span id="inst">—</span>
+ </div>
+ <div class="row"><button class="btn" id="bWifi">WiFi…</button><button class="btn" id="bCon">Console…</button></div>
+
+ <div class="sec" id="secCh">CHANNEL</div>
+ <div id="single" class="grid2">
+  <label>Channel</label><select id="ch"></select>
+  <label>Function</label><select id="func"></select>
+  <label>Range</label><select id="range"></select>
+  <label>Ω/RTD wires</label><select id="wires"><option>2</option><option>4</option></select>
+ </div>
+ <button class="btn" id="bApply" style="margin-top:8px">Apply configuration</button>
+ <div id="multi" class="hidden">
+  <div class="muted" id="msum" style="margin-bottom:8px"></div>
+  <div class="grid2"><label>Method</label><select id="method">
+   <option value="sweep">Sweep (Monitor)</option><option value="hscan">Hydra scan (exp.)</option></select></div>
+  <button class="btn" id="bSetup" style="margin-top:8px">Configure channels…</button>
+ </div>
+
+ <div class="sec">ACQUISITION</div>
+ <div class="grid2">
+  <label>Mode</label><select id="mode">
+   <option value="live">LIVE</option><option value="monitor">MONITOR (chart)</option>
+   <option value="trigger">Trigger + LAST?</option><option value="multi">MULTI-CHANNEL</option></select>
+  <label>Period (s)</label><input type="text" id="period" value="1.0">
+ </div>
+ <button class="btn accent" id="bRun" style="margin-top:10px">▶&nbsp; Start</button>
+ <div class="row"><button class="btn" id="bCsv">Export CSV</button><button class="btn" id="bCsvW">Export scans</button></div>
+ <div class="note">CH0 is the front-panel input. 4-wire only on CH1–CH10 (CH n+10 is used as sense).
+  Changing function clears the Fluke alarm limits, Mx+B scaling and Review array.
+  Readings are kept in this page: export them before closing it.</div>
+</aside>
+
+<main>
+ <div class="banner" id="banner"></div>
+ <div class="card">
+  <div class="chips"><span class="chip" id="cCh">CH —</span><span class="chip" id="cFn">—</span><span class="cfg" id="cfg"></span></div>
+  <div class="reading"><span class="value" id="val">— — —</span><span class="unit" id="unit"></span></div>
+  <div class="stats" id="stats"></div>
+ </div>
+ <div class="view">
+  <div class="card" id="gaugeBox">
+   <div class="bar"><span class="sec">ANALOG METER</span><span class="grow"></span>
+    <label><input type="checkbox" id="lock">Lock range</label></div>
+   <canvas id="gauge"></canvas>
+  </div>
+  <div class="card hidden" id="tilesBox">
+   <div class="bar"><span class="sec">CHANNELS</span><span class="grow"></span>
+    <span class="muted" style="font-size:12px">click a tile to show it above · ◉ / ○ shows or hides its trace</span></div>
+   <div class="tiles" id="tiles"></div>
+  </div>
+  <div class="card hidden" id="chartBox">
+   <div class="bar"><span class="sec">HISTORY</span>
+    <span class="muted">Window</span><select id="win">
+     <option>10</option><option>30</option><option selected>60</option><option>120</option><option>300</option>
+     <option>600</option><option>1800</option><option>3600</option></select><span class="muted">s</span>
+    <label><input type="checkbox" id="yauto" checked>Autoscale Y</label>
+    <span class="muted">min</span><input type="text" id="ymin" disabled>
+    <span class="muted">max</span><input type="text" id="ymax" disabled>
+    <span class="grow"></span>
+    <label id="normL"><input type="checkbox" id="norm">Normalize</label>
+    <button class="btn" id="bClear" style="width:auto">Clear</button></div>
+   <canvas id="chart"></canvas>
+  </div>
+ </div>
+ <div class="status" id="status">—</div>
+</main>
+</div>
+</div>
+
+<dialog id="dSetup"><h2>Channel setup</h2><div class="setupwrap"><table class="setup" id="setupT"></table></div>
+ <div class="dlgbar"><span class="msg" id="setupMsg"></span><button class="btn" id="bAllOff">All off</button>
+ <button class="btn accent" id="bDone">Done</button></div></dialog>
+
+<dialog id="dCon"><h2>Command console</h2><div id="conOut"></div>
+ <div class="dlgbar"><input type="text" id="conIn" placeholder="e.g. FUNC? 0   ·   INTVL?   ·   SCAN?" autocomplete="off">
+ <button class="btn accent" id="bSend">Send</button><button class="btn" id="bConClose">Close</button></div>
+ <div class="muted" style="font-size:12px;margin-top:8px">Sends one raw command to the Hydra (only while no measurement runs).
+  Useful to check the syntax of the Hydra-scan commands.</div></dialog>
+
+<dialog id="dWifi"><h2>WiFi network</h2>
+ <div class="grid2" style="width:min(380px,85vw)"><label>SSID</label><input type="text" id="wSsid" autocomplete="off">
+ <label>Password</label><input type="password" id="wPass"></div>
+ <div class="muted" style="font-size:12px;margin-top:10px">The device restarts and joins this network. If it cannot,
+  it opens its own access point again (Hydra-XXXX).</div>
+ <div class="dlgbar"><span class="msg" id="wMsg"></span><button class="btn" id="bWClose">Cancel</button>
+ <button class="btn accent" id="bWSave">Save &amp; restart</button></div></dialog>
+
+<script>
+'use strict';
+// ------------------------------------------------------------------ constants
+const RANGES={'V DC':[['AUTO','AUTO'],['300 mV','1'],['3 V','2'],['30 V','3'],['150/300 V','4']],
+ 'V AC':[['AUTO','AUTO'],['300 mV','1'],['3 V','2'],['30 V','3'],['150/300 V','4']],
+ 'Ohm':[['AUTO','AUTO'],['300 Ω','1'],['3 kΩ','2'],['30 kΩ','3'],['300 kΩ','4'],['3 MΩ','5'],['10 MΩ','6']],
+ 'Frequency':[['AUTO','AUTO'],['900 Hz','1'],['9 kHz','2'],['90 kHz','3'],['900 kHz','4'],['1 MHz','5']],
+ 'Thermocouple':[...'JKETNRSBC'].map(x=>[x,x]),'RTD Pt100':[['Pt100','PT']],'OFF':[['---','']]};
+const FUNCS={'V DC':'VDC','V AC':'VAC','Ohm':'OHMS','Frequency':'FREQ','Thermocouple':'TEMP','RTD Pt100':'TEMP','OFF':'OFF'};
+const UNITS={'V DC':'V','V AC':'V','Ohm':'Ω','Frequency':'Hz','Thermocouple':'°C/°F','RTD Pt100':'°C/°F','OFF':''};
+const SI_MODES=['V DC','V AC','Ohm','Frequency'];
+const SI_PREFIX={'-9':'n','-6':'µ','-3':'m','0':'','3':'k','6':'M','9':'G'};
+const SI_PARSE={n:-9,u:-6,'µ':-6,m:-3,k:3,K:3,M:6,G:9};
+const COLORS=['#ffc20e','#29b6f6','#ff6b6b','#3ddc84','#c792ea','#ff9f43','#4dd0e1','#f78fb3','#a3e635','#b0bec5'];
+const FS_STEPS=[];for(let e=-6;e<10;e++)for(const m of [1,3])FS_STEPS.push(m*10**e);
+const C={bg:'#0e1014',panel:'#161920',panel2:'#1e222b',border:'#2a2f3a',text:'#e7e9ee',muted:'#8b93a1',accent:'#ffc20e',red:'#ff5252',plot:'#11141a'};
+const $=id=>document.getElementById(id);
+
+// ------------------------------------------------------------------ helpers
+const engExp=x=>(!x||isNaN(x))?0:Math.max(-9,Math.min(9,Math.floor(Math.log10(Math.abs(x))/3)*3));
+function fmtValue(v,mode,digits=6){
+ const unit=UNITS[mode]||'';
+ if(v==null||isNaN(v))return['OL',unit];
+ if(!SI_MODES.includes(mode)||v===0)return[(v>=0?'+':'')+Number(v.toPrecision(digits)).toString(),unit];
+ const e=engExp(v),s=v/10**e,dec=Math.max(0,digits-1-Math.floor(Math.log10(Math.abs(s))));
+ return[(s>=0?'+':'')+s.toFixed(dec),SI_PREFIX[e]+unit];
+}
+function parseSI(t){t=t.trim().replace(',','.');const l=t.slice(-1);
+ const v=(l in SI_PARSE)?parseFloat(t.slice(0,-1))*10**SI_PARSE[l]:parseFloat(t);if(isNaN(v))throw 0;return v;}
+const chooseFS=a=>FS_STEPS.find(f=>a<=f)??FS_STEPS[FS_STEPS.length-1];
+const chLabel=ch=>ch===0?'CH00 · FRONT':'CH'+String(ch).padStart(2,'0');
+const color=ch=>COLORS[ch%COLORS.length];
+function buildFunc(mode,rangeLabel,wires,ch){
+ if(mode==='OFF')return`FUNC ${ch},OFF`;
+ const code=(RANGES[mode].find(r=>r[0]===rangeLabel)||RANGES[mode][0])[1];
+ return(mode==='Ohm'||mode==='RTD Pt100')?`FUNC ${ch},${FUNCS[mode]},${code},${wires}`:`FUNC ${ch},${FUNCS[mode]},${code}`;
+}
+function niceTicks(lo,hi,n=6){
+ const raw=(hi-lo)/n||1,mag=10**Math.floor(Math.log10(raw));
+ const step=[1,2,2.5,5,10].map(s=>s*mag).find(s=>s>=raw*0.999)||10*mag;
+ const a=Math.floor(lo/step+1e-9)*step,b=Math.ceil(hi/step-1e-9)*step,t=[];
+ for(let x=a;x<=b+step*1e-6;x+=step)t.push(Math.abs(x)<step*1e-9?0:x);return t;
+}
+const pad2=n=>String(n).padStart(2,'0');
+const hms=d=>`${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
+function isoLocal(t){const d=new Date(t);return`${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}T${hms(d)}.${String(d.getMilliseconds()).padStart(3,'0')}`;}
+async function api(path,params,method='POST'){
+ const opt={method,cache:'no-store'};
+ if(params!==undefined){if(typeof params==='string'){opt.body=params;opt.headers={'Content-Type':'application/json'};}
+  else opt.body=new URLSearchParams(params);}
+ const r=await fetch(path,opt);let j={};try{j=await r.json();}catch(e){}
+ if(!r.ok||j.ok===false)throw new Error(j.err||('HTTP '+r.status));return j;
+}
+
+// ------------------------------------------------------------------ analog meter
+class Gauge{
+ constructor(cv){this.cv=cv;this.fs=1;this.bip=false;this.mode='V DC';this.caption='';this.pos=0;this.vel=0;this.target=0;
+  this.ol=false;this.cache=null;this.last=0;this.anim=false;new ResizeObserver(()=>this.resize()).observe(cv);}
+ resize(){const r=this.cv.getBoundingClientRect(),dpr=window.devicePixelRatio||1;
+  if(!r.width)return;this.w=r.width;this.h=r.height;this.cv.width=r.width*dpr;this.cv.height=r.height*dpr;this.dpr=dpr;
+  this.drawStatic();this.frame();}
+ setScale(fs,bip,mode,caption){if(fs!==this.fs||bip!==this.bip||mode!==this.mode||caption!==this.caption){
+  Object.assign(this,{fs,bip,mode,caption});this.drawStatic();this.kick();}}
+ setValue(v){this.ol=v==null||isNaN(v);const P=Gauge.PEG;
+  let f=this.ol?1+P:this.bip?(v+this.fs)/(2*this.fs):v/this.fs;this.target=Math.max(-P,Math.min(1+P,f));this.kick();}
+ reset(){this.ol=false;this.target=this.bip?.5:0;this.kick();}
+ ang(f){return(140-100*f)*Math.PI/180;}
+ pt(f,r){const a=this.ang(f);return[this.cx+r*Math.cos(a),this.py-r*Math.sin(a)];}
+ ticks(){const e=engExp(this.fs),d=this.fs/10**e,mant=Math.round(d/10**Math.floor(Math.log10(d)));
+  const major=mant===1?d/5:d/6,minor=major/(mant===1?4:5),lo=this.bip?-d:0,span=d-lo,n=Math.round(span/minor),
+  per=Math.round(major/minor),every=this.bip?2:1,out=[];
+  for(let i=0;i<=n;i++){const v=lo+i*minor,isMaj=i%per===0,half=!isMaj&&per%2===0&&i%(per/2)===0;
+   let lbl=null;if(isMaj&&(i/per)%every===0)lbl=Math.abs(v)<1e-12?'0':String(Number(v.toPrecision(3)));
+   out.push([(v-lo)/span,isMaj?'major':half?'half':'minor',lbl]);}
+  return[out,SI_PREFIX[e]];}
+ rrect(c,x0,y0,x1,y1,r){c.beginPath();c.moveTo(x0+r,y0);c.arcTo(x1,y0,x1,y1,r);c.arcTo(x1,y1,x0,y1,r);c.arcTo(x0,y1,x0,y0,r);c.arcTo(x0,y0,x1,y0,r);c.closePath();}
+ drawStatic(){
+  if(!this.w)return;const w=this.w,h=this.h,m=8,x0=m,y0=m,x1=w-m,y1=h-m;
+  const off=this.cache||document.createElement('canvas');this.cache=off;off.width=this.cv.width;off.height=this.cv.height;
+  const c=off.getContext('2d');c.setTransform(this.dpr,0,0,this.dpr,0,0);c.clearRect(0,0,w,h);
+  this.rrect(c,x0-2,y0-2,x1+2,y1+2,18);c.fillStyle='#08090b';c.fill();
+  this.rrect(c,x0+6,y0+6,x1-6,y1-6,12);c.fillStyle='#efe7d2';c.fill();c.lineWidth=2;c.strokeStyle='#d9cfb4';c.stroke();
+  this.cx=w/2;this.py=y1-22;
+  const R=Math.max(40,Math.min(((x1-x0)/2-46)/Math.sin(50*Math.PI/180),this.py-y0-58));this.R=R;
+  const arc=(r,a0,a1,col,lw)=>{c.beginPath();c.arc(this.cx,this.py,r,-a0*Math.PI/180,-a1*Math.PI/180);c.strokeStyle=col;c.lineWidth=lw;c.stroke();};
+  arc(R-13,140,40,'#b9c3cc',7);arc(R-13,140,40,'#dfe6ec',2);arc(R,140,40,'#1c1a17',2);
+  const peg=100*Gauge.PEG;arc(R+3,40,40-peg,'#c0392b',6);if(this.bip)arc(R+3,140+peg,140,'#c0392b',6);
+  const[ticks,prefix]=this.ticks(),fs=Math.max(9,Math.round(R/17));
+  c.fillStyle='#1c1a17';c.strokeStyle='#1c1a17';c.textAlign='center';c.textBaseline='middle';c.font=`700 ${fs}px ${getComputedStyle(document.body).getPropertyValue('--ui')}`;
+  for(const[f,k,l]of ticks){const len={major:15,half:10,minor:6}[k];c.lineWidth=k==='major'?2:1;
+   const[a,b]=this.pt(f,R),[p,q]=this.pt(f,R+len);c.beginPath();c.moveTo(a,b);c.lineTo(p,q);c.stroke();
+   if(l!==null){const[tx,ty]=this.pt(f,R+len+fs+2);c.fillText(l,tx,ty);}}
+  const ui=getComputedStyle(document.body).getPropertyValue('--ui'),mono=getComputedStyle(document.body).getPropertyValue('--mono');
+  let unit=UNITS[this.mode]||'';if(SI_MODES.includes(this.mode))unit=prefix+unit;
+  const uy=this.py-R*.42;c.font=`700 ${Math.max(14,Math.round(R/7))}px ${ui}`;c.fillText(unit,this.cx,uy);
+  const sym={'V DC':'⎓','V AC':'∿'}[this.mode];if(sym){c.font=`${Math.max(12,Math.round(R/10))}px ${ui}`;c.fillText(sym,this.cx,uy+R*.14);}
+  const fsT=fmtValue(this.fs,this.mode,3).join(' ').replace(/^\+/,'');
+  c.fillStyle='#6d6655';c.font=`700 12px ${mono}`;c.textAlign='left';c.textBaseline='top';c.fillText(this.bip?'±'+fsT:'0 … '+fsT,x0+22,y0+20);
+  c.font=`12px ${ui}`;c.textAlign='right';c.fillText(this.caption,x1-22,y0+20);
+  c.fillStyle='#8a826d';c.textAlign='left';c.textBaseline='bottom';c.fillText('CL 1.5   ⊥',x0+22,y1-24);
+ }
+ kick(){if(!this.anim){this.anim=true;this.last=performance.now();requestAnimationFrame(t=>this.tick(t));}}
+ tick(t){const wn=13,z=.55,dt=.004;let n=Math.min(40,Math.round((t-this.last)/1000/dt));this.last=t;
+  const hi=1+Gauge.PEG+.01,lo=-Gauge.PEG-.01;
+  for(let i=0;i<n;i++){const acc=wn*wn*(this.target-this.pos)-2*z*wn*this.vel;this.vel+=acc*dt;this.pos+=this.vel*dt;
+   if(this.pos>hi||this.pos<lo){this.pos=Math.min(Math.max(this.pos,lo),hi);this.vel*=-.25;}}
+  if(Math.abs(this.target-this.pos)<3e-4&&Math.abs(this.vel)<3e-3){this.pos=this.target;this.vel=0;this.anim=false;}
+  this.frame();if(this.anim)requestAnimationFrame(t2=>this.tick(t2));}
+ frame(){if(!this.cache||!this.w)return;const c=this.cv.getContext('2d');c.setTransform(1,0,0,1,0,0);
+  c.clearRect(0,0,this.cv.width,this.cv.height);c.drawImage(this.cache,0,0);c.setTransform(this.dpr,0,0,this.dpr,0,0);
+  const{cx,py,R}=this,a=this.ang(this.pos),[tx,ty]=this.pt(this.pos,R+6),tail=[cx-16*Math.cos(a),py+16*Math.sin(a)];
+  c.lineCap='butt';c.lineWidth=2;c.strokeStyle='#b7ae97';c.beginPath();c.moveTo(cx+3,py+3);c.lineTo(tx+3,ty+4);c.stroke();
+  c.strokeStyle='#1c1a17';c.beginPath();c.moveTo(cx,py);c.lineTo(tx,ty);c.stroke();
+  c.lineWidth=6;c.lineCap='round';c.beginPath();c.moveTo(cx,py);c.lineTo(...tail);c.stroke();
+  const pr=R*.17,m=8;c.fillStyle='#202226';c.beginPath();c.arc(cx,py,pr,Math.PI,0);c.fill();
+  c.fillRect(m+7,py,this.w-2*m-14,this.h-m-7-py);c.fillStyle='#3a3d44';c.beginPath();c.ellipse(cx,py-6,4,4,0,0,7);c.fill();
+  if(this.ol){const x=this.w-m-49,y=this.h-m-35;c.fillStyle=C.red;c.beginPath();c.arc(x,y,9,0,7);c.fill();
+   c.fillStyle='#c0392b';c.font=`700 12px ${getComputedStyle(document.body).getPropertyValue('--ui')}`;c.textAlign='center';c.textBaseline='bottom';c.fillText('OL',x,y-12);}
+ }
+}
+Gauge.PEG=.055;
+
+// ------------------------------------------------------------------ chart
+class Chart{
+ constructor(cv){this.cv=cv;this.ylim=null;new ResizeObserver(()=>this.resize()).observe(cv);}
+ resize(){const r=this.cv.getBoundingClientRect(),dpr=window.devicePixelRatio||1;if(!r.width)return;
+  this.w=r.width;this.h=r.height;this.cv.width=r.width*dpr;this.cv.height=r.height*dpr;this.dpr=dpr;app.dirty=true;}
+ autoYlim(lo,hi){const span=hi-lo,pad=Math.max(span*.08,Math.max(Math.abs(lo),Math.abs(hi))*.002,1e-9);
+  if(this.ylim){const[a,b]=this.ylim;if(a<=lo&&hi<=b&&span+2*pad>.35*(b-a))return;}
+  const t=niceTicks(lo-pad,hi+pad);this.ylim=[t[0],t[t.length-1]];}
+ // series: [{pts:[[t,v]], color, label, fill, last, mean}], opts:{unit,k,norm}
+ draw(series,now,span,yl,unit){
+  if(!this.w)return;const c=this.cv.getContext('2d'),W=this.w,H=this.h,L=64,Rm=12,T=10,B=28;
+  c.setTransform(this.dpr,0,0,this.dpr,0,0);c.fillStyle=C.panel;c.fillRect(0,0,W,H);
+  c.fillStyle=C.plot;c.fillRect(L,T,W-L-Rm,H-T-B);
+  const x0=now-span*1000,X=t=>L+(t-x0)/(span*1000+100)*(W-L-Rm),[ya,yb]=yl,Y=v=>T+(1-(v-ya)/(yb-ya))*(H-T-B);
+  const mono=getComputedStyle(document.body).getPropertyValue('--mono');
+  c.font=`11px ${mono}`;c.fillStyle=C.muted;c.strokeStyle='#252a34';c.lineWidth=1;
+  // Y grid
+  c.textAlign='right';c.textBaseline='middle';
+  for(const v of niceTicks(ya,yb)){if(v<ya-1e-12||v>yb+1e-12)continue;const y=Math.round(Y(v))+.5;
+   c.beginPath();c.moveTo(L,y);c.lineTo(W-Rm,y);c.stroke();c.fillText(String(Number(v.toPrecision(6))),L-6,y);}
+  // X grid: round intervals
+  const maxLbl=Math.max(2,Math.floor((W-L-Rm)/80)),steps=[1,2,5,10,15,30,60,120,300,600,900,1800,3600],st=steps.find(s=>span/s<=maxLbl)||3600;
+  c.textAlign='center';c.textBaseline='top';
+  for(let t=Math.ceil(x0/1000/st)*st*1000;t<=now;t+=st*1000){const x=Math.round(X(t))+.5;
+   c.beginPath();c.moveTo(x,T);c.lineTo(x,H-B);c.stroke();c.fillText(hms(new Date(t)),x,H-B+7);}
+  c.strokeStyle=C.border;c.strokeRect(L+.5,T+.5,W-L-Rm-1,H-T-B-1);
+  c.save();c.translate(14,T+(H-T-B)/2);c.rotate(-Math.PI/2);c.textAlign='center';c.textBaseline='middle';c.fillText(unit,0,0);c.restore();
+  c.save();c.beginPath();c.rect(L,T,W-L-Rm,H-T-B);c.clip();
+  for(const s of series){const p=s.pts.filter(q=>q[0]>=x0);if(!p.length)continue;
+   if(s.fill){c.beginPath();let open=false;const base=Y(ya);
+    for(const[t,v]of p){if(isNaN(v)){if(open){c.lineTo(X(t),base);}open=false;continue;}
+     if(!open){c.moveTo(X(t),base);open=true;}c.lineTo(X(t),Y(v));}
+    if(open)c.lineTo(X(p[p.length-1][0]),base);c.fillStyle=s.color+'14';c.fill();}
+   if(s.mean!=null){c.setLineDash([5,4]);c.strokeStyle=C.muted+'b0';c.lineWidth=.8;c.beginPath();
+    c.moveTo(L,Y(s.mean));c.lineTo(W-Rm,Y(s.mean));c.stroke();c.setLineDash([]);}
+   c.strokeStyle=s.color;c.lineWidth=1.6;c.lineJoin='round';c.beginPath();let pen=false;
+   for(const[t,v]of p){if(isNaN(v)){pen=false;continue;}if(pen)c.lineTo(X(t),Y(v));else{c.moveTo(X(t),Y(v));pen=true;}}
+   c.stroke();
+   if(s.last){const q=p[p.length-1];if(!isNaN(q[1])){c.fillStyle=s.color;c.strokeStyle=C.plot;c.lineWidth=1.5;
+    c.beginPath();c.arc(X(q[0]),Y(q[1]),4,0,7);c.fill();c.stroke();}}}
+  c.restore();
+  // legend
+  const leg=series.filter(s=>s.label);if(leg.length){c.font=`11px ${getComputedStyle(document.body).getPropertyValue('--ui')}`;
+   const maxW=W-L-Rm-24,fit=t=>{if(c.measureText(t).width<=maxW-34)return t;while(t.length>4&&c.measureText(t+'…').width>maxW-34)t=t.slice(0,-1);return t+'…';};
+   for(const s of leg)s.label=fit(s.label);
+   const cols=Math.min(leg.length,W<700?1:(leg[0].label.length>24?2:4)),cw=Math.min(maxW/Math.min(leg.length,W<700?1:(leg[0].label.length>24?2:4)),Math.max(...leg.map(s=>c.measureText(s.label).width))+34),
+   rows=Math.ceil(leg.length/cols),bw=cols*cw+8,bh=rows*18+8;
+   c.fillStyle=C.panel2+'e6';c.strokeStyle=C.border;c.fillRect(L+8,T+8,bw,bh);c.strokeRect(L+8.5,T+8.5,bw,bh);
+   c.textAlign='left';c.textBaseline='middle';
+   leg.forEach((s,i)=>{const x=L+14+(i%cols)*cw,y=T+21+Math.floor(i/cols)*18;c.strokeStyle=s.color;c.lineWidth=2;
+    c.beginPath();c.moveTo(x,y);c.lineTo(x+20,y);c.stroke();c.fillStyle=C.text;c.fillText(s.label,x+26,y);});}
+ }
+}
+
+// ------------------------------------------------------------------ app state
+const app={
+ dev:null,since:0,running:false,sess:null,sessKey:'',dirty:true,
+ log:[],scans:new Map(),hist:{},stats:{},last:{},visible:{},focus:null,
+ g:{fs:null,down:0,neg:[]},chcfg:null,lastBlink:0,offline:0
+};
+const gauge=new Gauge($('gauge')),chart=new Chart($('chart'));
+
+function defaultCfg(){const c={};for(let ch=0;ch<=20;ch++)c[ch]={on:ch===0,mode:'V DC',range:'AUTO',wires:'2'};return{method:'sweep',channels:c};}
+function sanitizeCfg(o){const d=defaultCfg();if(!o||typeof o!=='object')return d;
+ if(o.method==='sweep'||o.method==='hscan')d.method=o.method;
+ for(let ch=0;ch<=20;ch++){const s=(o.channels||{})[ch];if(!s)continue;const m=RANGES[s.mode]?s.mode:'V DC';
+  d.channels[ch]={on:!!s.on,mode:m,range:RANGES[m].some(r=>r[0]===s.range)?s.range:RANGES[m][0][0],wires:s.wires==='4'?'4':'2'};}
+ return d;}
+async function loadCfg(){let o=null;try{o=await (await fetch('/api/config',{cache:'no-store'})).json();}catch(e){}
+ if(!o||!o.channels){try{o=JSON.parse(localStorage.getItem('hydra_cfg'));}catch(e){}}
+ app.chcfg=sanitizeCfg(o);$('method').value=app.chcfg.method;updateSummary();}
+function saveCfg(){app.chcfg.method=$('method').value;const s=JSON.stringify(app.chcfg);
+ try{localStorage.setItem('hydra_cfg',s);}catch(e){}api('/api/config',s).catch(()=>{});}
+
+// ------------------------------------------------------------------ UI basics
+function fillSelect(sel,items,val){sel.innerHTML='';for(const it of items){const o=document.createElement('option');
+ if(Array.isArray(it)){o.value=it[0];o.textContent=it[1];}else{o.value=o.textContent=it;}sel.appendChild(o);}if(val!==undefined)sel.value=val;}
+fillSelect($('ch'),Array.from({length:21},(_,i)=>[String(i),i===0?'0 · Front':String(i)]),'0');
+fillSelect($('func'),Object.keys(RANGES),'V DC');
+function updateRanges(){fillSelect($('range'),RANGES[$('func').value].map(r=>r[0]));
+ $('wires').disabled=!['Ohm','RTD Pt100'].includes($('func').value);if($('wires').disabled)$('wires').value='2';}
+$('func').onchange=updateRanges;updateRanges();
+const curMode=()=>$('mode').value;
+function setStatus(t){$('status').textContent=t;}
+function led(col){$('led').style.background=col;}
+function blink(){led(C.accent);setTimeout(()=>led(ledColor()),120);}
+function ledColor(){const d=app.dev;if(!d||app.offline)return'#3a3f4a';if(d.err||!d.inst)return C.red;return'#3ddc84';}
+
+function modeChanged(fromUser){
+ const m=curMode(),multi=m==='multi';
+ if(fromUser&&app.running)stop();
+ $('single').classList.toggle('hidden',multi);$('bApply').classList.toggle('hidden',multi);$('multi').classList.toggle('hidden',!multi);
+ $('secCh').textContent=multi?'CHANNELS':'CHANNEL';
+ $('gaugeBox').classList.toggle('hidden',m==='monitor'||multi);
+ $('tilesBox').classList.toggle('hidden',!multi);$('chartBox').classList.toggle('hidden',!(m==='monitor'||multi));
+ $('normL').classList.toggle('hidden',!multi);$('bCsvW').classList.toggle('hidden',!multi);app.dirty=true;
+}
+$('mode').onchange=()=>modeChanged(true);
+$('yauto').onchange=()=>{const a=$('yauto').checked;$('ymin').disabled=$('ymax').disabled=a;
+ if(!a&&chart.ylim&&!$('ymin').value){const e=plotExp();$('ymin').value=Number((chart.ylim[0]/10**e).toPrecision(4))+SI_PREFIX[e];
+  $('ymax').value=Number((chart.ylim[1]/10**e).toPrecision(4))+SI_PREFIX[e];}app.dirty=true;};
+for(const id of['ymin','ymax'])$(id).onchange=()=>app.dirty=true;
+$('norm').onchange=()=>{chart.ylim=null;app.dirty=true;};
+$('win').onchange=()=>app.dirty=true;
+$('bClear').onclick=()=>{for(const ch in app.hist)app.hist[ch]=[];chart.ylim=null;app.dirty=true;};
+
+// ------------------------------------------------------------------ session
+function sessionFromDesc(d){
+ if(!d||!d.mode||!Array.isArray(d.ch))return null;
+ const chans=d.ch.map(x=>({ch:x[0],mode:x[1],range:x[2],wires:x[3]})).filter(x=>RANGES[x.mode]);
+ return chans.length?{mode:d.mode,method:d.method||'sweep',chans,ids:chans.map(x=>x.ch)}:null;
+}
+function plotMode(){const s=app.sess;if(!s)return $('func').value;const u=new Set(s.chans.map(x=>UNITS[x.mode]));
+ return u.size===1?s.chans[0].mode:null;}
+function plotExp(){const m=plotMode();if(!m||!SI_MODES.includes(m)||!chart.ylim)return 0;
+ return engExp(Math.max(Math.abs(chart.ylim[0]),Math.abs(chart.ylim[1])));}
+function adoptSession(sess,scan0,fresh){
+ app.sess=sess;app.scan0=scan0;app.hist={};app.stats={};app.last={};app.visible={};app.scans=new Map();
+ app.g={fs:null,down:0,neg:[]};chart.ylim=null;
+ for(const x of sess.chans){app.hist[x.ch]=[];app.stats[x.ch]=[null,null,0,0,0];app.visible[x.ch]=true;}
+ app.focus=sess.chans[0].ch;
+ if(!fresh){ // page opened on a running session: mirror its settings in the controls
+  $('mode').value=sess.mode;if(sess.mode==='multi')$('method').value=sess.method;
+  else{const x=sess.chans[0];$('ch').value=String(x.ch);$('func').value=x.mode;updateRanges();$('range').value=x.range;$('wires').value=x.wires;}
+  modeChanged(false);}
+ $('norm').checked=sess.mode==='multi'&&new Set(sess.chans.map(x=>UNITS[x.mode])).size>1;
+ buildTiles();showFocus();gauge.reset();app.dirty=true;
+}
+function setRunning(on){app.running=on;const b=$('bRun');b.innerHTML=on?'■&nbsp; Stop':'▶&nbsp; Start';b.className='btn '+(on?'stop':'accent');}
+
+async function start(){
+ const d=app.dev;if(!d){setStatus('Device not reachable');return;}
+ if(d.bridge){setStatus('The PC bridge is in use');return;}
+ let sec=parseFloat($('period').value.replace(',','.'));
+ if(!(sec>=.5&&sec<=3600)){alert('Enter a period between 0.5 and 3600 seconds.');return;}
+ const m=curMode();let chans=[];
+ if(m==='multi'){const c=app.chcfg.channels;
+  chans=Object.keys(c).map(Number).filter(ch=>c[ch].on&&c[ch].mode!=='OFF').map(ch=>({ch,...c[ch]}));
+  if(!chans.length){alert('Enable at least one channel in "Configure channels…".');return;}
+  const p=multiProblems();if(p.length){alert(p.join('\n'));return;}
+  if($('method').value==='hscan')sec=Math.max(1,Math.round(sec));saveCfg();
+ }else{const ch=+$('ch').value,mode=$('func').value;
+  if(mode==='OFF'){alert('Select a measurement function.');return;}
+  if(['Ohm','RTD Pt100'].includes(mode)&&$('wires').value==='4'&&!(ch>=1&&ch<=10)){alert('4-wire measurement is only available on channels 1–10.');return;}
+  chans=[{ch,mode,range:$('range').value,wires:$('wires').value}];}
+ const desc={mode:m,method:$('method').value,ch:chans.map(x=>[x.ch,x.mode,x.range,x.wires])};
+ const f=chans.map(x=>`${x.ch}|${buildFunc(x.mode,x.range,x.wires,x.ch)}`).join(';');
+ try{await api('/api/start',{mode:m,method:$('method').value,period:Math.round(sec*1000),f,desc:JSON.stringify(desc)});
+  app.sessKey='';setRunning(true);setStatus('Starting…');poll();}catch(e){setStatus('Error: '+e.message);}
+}
+async function stop(){setRunning(false);try{await api('/api/stop',{});}catch(e){}}
+$('bRun').onclick=()=>app.running?stop():start();
+
+// ------------------------------------------------------------------ readings
+function onReading(seq,t,ch,v,scan){
+ const s=app.sess;if(!s||scan<app.scan0||!s.ids.includes(ch))return;
+ const x=s.chans.find(q=>q.ch===ch),val=v===null?NaN:v;
+ app.log.push([t,ch,x.mode,val]);if(app.log.length>200000)app.log.splice(0,20000);
+ const h=app.hist[ch];h.push([t,val]);if(h.length>20000)h.splice(0,2000);
+ app.last[ch]=val;const st=app.stats[ch];
+ if(isNaN(val))st[4]++;else{st[0]=st[0]===null?val:Math.min(st[0],val);st[1]=st[1]===null?val:Math.max(st[1],val);st[2]+=val;st[3]++;}
+ if(s.mode==='multi'){let row=app.scans.get(scan);if(!row){row={t,v:{}};app.scans.set(scan,row);
+   if(app.scans.size>50000)app.scans.delete(app.scans.keys().next().value);}row.v[ch]=val;
+  const tile=app.tiles&&app.tiles[ch];if(tile){const[a,u]=fmtValue(val,x.mode,5);tile.v.textContent=a==='OL'?'OL':a+' '+u;tile.v.classList.toggle('ol',isNaN(val));}}
+ else if(s.mode!=='monitor')updateGauge(val,x.mode,ch);
+ app.dirty=true;
+}
+function updateGauge(v,mode,ch){
+ if(isNaN(v)){gauge.setValue(null);return;}const g=app.g;
+ if(!$('lock').checked){const a=Math.abs(v),need=chooseFS(a);
+  if(g.fs===null||need>g.fs){g.fs=need;g.down=0;}
+  else if(chooseFS(a/.9)<g.fs){if(++g.down>=4){g.fs=chooseFS(a/.9);g.down=0;}}else g.down=0;
+  g.neg.push(v<0);if(g.neg.length>20)g.neg.shift();}
+ const bip=['V DC','Thermocouple','RTD Pt100'].includes(mode)&&g.neg.some(Boolean);
+ gauge.setScale(g.fs||1,bip,mode,chLabel(ch));gauge.setValue(v);
+}
+function statsText(mode,st){const[mn,mx,sm,n,ol]=st;if(!n)return ol?'OL '+ol:'';const f=v=>fmtValue(v,mode).join(' ');
+ return`min ${f(mn)}   max ${f(mx)}   mean ${f(sm/n)}   n ${n}${ol?'   OL '+ol:''}`;}
+function showFocus(){const s=app.sess;if(!s)return;const x=s.chans.find(q=>q.ch===app.focus)||s.chans[0];
+ $('cCh').textContent=chLabel(x.ch);$('cFn').textContent=x.mode+' · '+x.range;
+ const v=app.last[x.ch];if(v===undefined){$('val').textContent='— — —';$('unit').textContent='';$('val').classList.remove('ol');}
+ else{const[a,u]=fmtValue(v,x.mode);$('val').textContent=a;$('unit').textContent=a==='OL'?u:u;$('val').classList.toggle('ol',isNaN(v));}
+ $('stats').textContent=statsText(x.mode,app.stats[x.ch]);
+ if(app.tiles)for(const ch in app.tiles)app.tiles[ch].el.classList.toggle('focus',+ch===x.ch);}
+function buildTiles(){const box=$('tiles');box.innerHTML='';app.tiles={};const s=app.sess;if(!s||s.mode!=='multi')return;
+ for(const x of s.chans){const el=document.createElement('div');el.className='tile';
+  el.innerHTML=`<div class="strip" style="background:${color(x.ch)}"></div><div class="head"><span>${chLabel(x.ch)}</span><span class="eye" style="color:${color(x.ch)}">◉</span></div><div class="v">—</div><div class="f">${x.mode} · ${x.range}</div>`;
+  el.onclick=()=>{app.focus=x.ch;showFocus();};
+  const eye=el.querySelector('.eye');eye.onclick=e=>{e.stopPropagation();app.visible[x.ch]=!app.visible[x.ch];
+   eye.textContent=app.visible[x.ch]?'◉':'○';eye.style.color=app.visible[x.ch]?color(x.ch):C.muted;chart.ylim=null;app.dirty=true;};
+  box.appendChild(el);app.tiles[x.ch]={el,v:el.querySelector('.v')};
+  const lv=app.last[x.ch];if(lv!==undefined){const[a,u]=fmtValue(lv,x.mode,5);app.tiles[x.ch].v.textContent=a==='OL'?'OL':a+' '+u;}}}
+
+// ------------------------------------------------------------------ chart refresh
+function updateYlim(finite){
+ if($('yauto').checked){if(finite.length){let lo=Infinity,hi=-Infinity;for(const v of finite){if(v<lo)lo=v;if(v>hi)hi=v;}chart.autoYlim(lo,hi);}
+  else if(!chart.ylim)chart.ylim=[-1,1];}
+ else{try{const a=parseSI($('ymin').value),b=parseSI($('ymax').value);if(b>a)chart.ylim=[a,b];}catch(e){}if(!chart.ylim)chart.ylim=[-1,1];}}
+function redraw(){
+ const s=app.sess,m=curMode();if(!(m==='monitor'||m==='multi')){app.dirty=false;return;}
+ const now=Date.now(),span=+$('win').value,cut=now-span*1000;
+ if(!s||(m==='multi')!==(s.mode==='multi')){chart.ylim=chart.ylim||[-1,1];chart.draw([],now,span,chart.ylim,'Value');app.dirty=false;return;}
+ const norm=m==='multi'&&$('norm').checked,series=[];let finite=[];
+ const pts={};for(const x of s.chans){pts[x.ch]=app.hist[x.ch].filter(p=>p[0]>=cut);
+  if(app.visible[x.ch])for(const p of pts[x.ch])if(!isNaN(p[1]))finite.push(p[1]);}
+ let unit,k=1,yl;
+ if(norm){yl=[-5,105];unit='% of each trace range';}
+ else{updateYlim(finite);const e=plotExp(),pm=plotMode();k=10**e;yl=[chart.ylim[0]/k,chart.ylim[1]/k];
+  unit=pm?(SI_MODES.includes(pm)?SI_PREFIX[e]:'')+UNITS[pm]:'Value (mixed units)';}
+ for(const x of s.chans){if(!app.visible[x.ch])continue;let p=pts[x.ch],label=null;
+  if(s.mode==='multi'){label=chLabel(x.ch)+' '+x.mode;
+   if(norm){const g=p.map(q=>q[1]).filter(v=>!isNaN(v));const lo=g.length?Math.min(...g):0,hi=g.length?Math.max(...g):0;
+    const f=v=>fmtValue(v,x.mode,4).join(' ').replace(/^\+/,'');if(g.length)label+=`  [${f(lo)} … ${f(hi)}]`;
+    p=p.map(q=>[q[0],isNaN(q[1])?NaN:(hi===lo?50:(q[1]-lo)/(hi-lo)*100)]);}
+   else p=p.map(q=>[q[0],q[1]/k]);}
+  else p=p.map(q=>[q[0],q[1]/k]);
+  const single=s.mode!=='multi',g=single?p.map(q=>q[1]).filter(v=>!isNaN(v)):[];
+  series.push({pts:p,color:single?C.accent:color(x.ch),label,fill:single,last:single,mean:single&&g.length?g.reduce((a,b)=>a+b,0)/g.length:null});}
+ chart.draw(series,now,span,yl,unit);app.dirty=false;
+}
+setInterval(()=>{if(app.dirty||app.running)redraw();},300);
+
+// ------------------------------------------------------------------ polling
+let polling=false;
+async function poll(){
+ if(polling)return;polling=true;
+ try{
+  const d=await (await fetch('/api/status',{cache:'no-store'})).json();app.dev=d;app.offline=0;
+  $('fw').textContent='fw '+d.fw;
+  $('ident').textContent=d.inst?(d.idn||'Hydra').replace(/,/g,' · '):'Hydra not responding';
+  $('net').textContent=d.ap?`AP ${d.ip}`:`${d.ssid} · ${d.rssi} dBm`;$('net').title=d.ip;
+  $('inst').textContent=d.inst?'responding':'no answer';$('inst').style.color=d.inst?'':C.red;
+  $('cfg').textContent=d.func&&d.run&&d.mode!=='multi'?'Instrument: '+chLabel(d.ch[0])+' '+d.func:'';
+  const bn=$('banner');bn.style.display=d.bridge?'block':'none';
+  if(d.bridge)bn.textContent=`A PC is connected through the bridge (port ${d.bridgePort}): web control is paused.`;
+  $('bRun').disabled=d.bridge&&!d.run;
+  if(d.seq<app.since){app.since=0;app.sessKey='';}            // device restarted
+  const key=JSON.stringify(d.desc)+'|'+d.scan0;
+  // adopt the device's session: a new one, or the last one when this page has none yet
+  if(d.desc&&key!==app.sessKey&&(d.run||!app.sess)){const s=sessionFromDesc(d.desc);
+   if(s){adoptSession(s,d.scan0,app.running);app.sessKey=key;}}
+  if(d.run&&!app.running)setRunning(true);
+  else if(!d.run&&app.running)setRunning(false);
+  // readings
+  let more=true,n=0;
+  while(more&&n++<20){const r=await (await fetch('/api/readings?since='+app.since,{cache:'no-store'})).json();
+   const off=Date.now()-r.now;for(const x of r.r)onReading(x[0],x[1]+off,x[2],x[3],x[4]);
+   if(r.r.length){app.since=r.seq;if(Date.now()-app.lastBlink>300){blink();app.lastBlink=Date.now();}}
+   more=r.more;if(r.seq>app.since)app.since=r.seq;}
+  showFocus();
+  const scans=app.sess&&app.sess.mode==='multi'?` · ${app.scans.size} scans`:'';
+  setStatus((d.err?'Error: '+d.err:d.msg)+(app.sess?` · ${app.log.length} readings${scans}`:''));
+  if(!d.run||!app.running)led(ledColor());
+ }catch(e){app.offline++;led('#3a3f4a');setStatus('Device not reachable… ('+app.offline+')');}
+ polling=false;
+}
+setInterval(()=>{if(app.running||Date.now()%2000<600)poll();},500);
+
+// ------------------------------------------------------------------ exports
+function download(name,text){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type:'text/csv'}));
+ a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);}
+const stamp=()=>{const d=new Date();return`${d.getFullYear()}${pad2(d.getMonth()+1)}${pad2(d.getDate())}_${pad2(d.getHours())}${pad2(d.getMinutes())}${pad2(d.getSeconds())}`;};
+$('bCsv').onclick=()=>{if(!app.log.length){alert('No readings to export yet.');return;}
+ const rows=['timestamp,channel,function,value,unit'];for(const[t,ch,m,v]of app.log)rows.push(`${isoLocal(t)},${ch},${m},${isNaN(v)?'':v},${UNITS[m]}`);
+ download(`hydra_${stamp()}.csv`,rows.join('\n')+'\n');};
+$('bCsvW').onclick=()=>{const s=app.sess;if(!s||s.mode!=='multi'||!app.scans.size){alert('No multi-channel scans to export yet.');return;}
+ const rows=['timestamp,'+s.chans.map(x=>`CH${pad2(x.ch)} ${x.mode} (${UNITS[x.mode]})`).join(',')];
+ for(const r of app.scans.values())rows.push(isoLocal(r.t)+','+s.chans.map(x=>x.ch in r.v&&!isNaN(r.v[x.ch])?r.v[x.ch]:'').join(','));
+ download(`hydra_multi_${stamp()}.csv`,rows.join('\n')+'\n');};
+
+// ------------------------------------------------------------------ channel setup dialog
+function activeChannels(){const c=app.chcfg.channels;return Object.keys(c).map(Number).filter(ch=>c[ch].on&&c[ch].mode!=='OFF');}
+function multiProblems(){const c=app.chcfg.channels,act=new Set(activeChannels()),p=[];
+ for(const ch of act){const x=c[ch];if(['Ohm','RTD Pt100'].includes(x.mode)&&x.wires==='4'){
+  if(!(ch>=1&&ch<=10))p.push(`CH${pad2(ch)}: 4-wire only on CH1–CH10`);else if(act.has(ch+10))p.push(`CH${pad2(ch+10)} is the 4-wire sense of CH${pad2(ch)}`);}}
+ return p;}
+function updateSummary(){const a=activeChannels();$('msum').textContent=a.length?`${a.length} channel${a.length>1?'s':''}: ${a.join(', ')}`:'No channel enabled.';}
+function setupRow(ch){const x=app.chcfg.channels[ch],tr=document.createElement('tr');
+ return`<td><input type="checkbox" data-ch="${ch}" data-k="on" ${x.on?'checked':''}></td><td>${chLabel(ch)}</td>
+ <td><select data-ch="${ch}" data-k="mode">${Object.keys(RANGES).map(m=>`<option ${m===x.mode?'selected':''}>${m}</option>`).join('')}</select></td>
+ <td><select data-ch="${ch}" data-k="range">${RANGES[x.mode].map(r=>`<option ${r[0]===x.range?'selected':''}>${r[0]}</option>`).join('')}</select></td>
+ <td><select data-ch="${ch}" data-k="wires" ${['Ohm','RTD Pt100'].includes(x.mode)&&ch>=1&&ch<=10?'':'disabled'}><option ${x.wires==='2'?'selected':''}>2</option><option ${x.wires==='4'?'selected':''}>4</option></select></td>
+ <td><span class="sw" style="background:${color(ch)}"></span></td>`;}
+function renderSetup(){const narrow=window.innerWidth<900,head='<th>USE</th><th>CHANNEL</th><th>FUNCTION</th><th>RANGE</th><th>WIRES</th><th></th>';
+ let h='';if(narrow){h='<tr>'+head+'</tr>';for(let ch=0;ch<=20;ch++)h+='<tr>'+setupRow(ch)+'</tr>';}
+ else{h='<tr>'+head+'<th style="width:24px"></th>'+head+'</tr>';
+  for(let r=0;r<=10;r++){h+='<tr>'+setupRow(r)+'<td></td>'+(r>=1?setupRow(r+10):'<td colspan="6"></td>')+'</tr>';}}
+ $('setupT').innerHTML=h;
+ const msgs=multiProblems();$('setupMsg').textContent=msgs.join('  ·  ')||(app.running&&curMode()==='multi'?'Changes apply at the next Start.':'');updateSummary();}
+$('setupT').onchange=e=>{const el=e.target,ch=+el.dataset.ch,k=el.dataset.k;if(!k)return;const x=app.chcfg.channels[ch];
+ if(k==='on')x.on=el.checked;else x[k]=el.value;
+ if(k==='mode'){x.range=RANGES[x.mode][0][0];if(x.mode!=='OFF')x.on=true;}
+ if(!(['Ohm','RTD Pt100'].includes(x.mode)&&ch>=1&&ch<=10))x.wires='2';renderSetup();};
+$('bSetup').onclick=()=>{renderSetup();$('dSetup').showModal();};
+$('bAllOff').onclick=()=>{for(const ch in app.chcfg.channels)app.chcfg.channels[ch].on=false;renderSetup();};
+$('bDone').onclick=()=>{saveCfg();updateSummary();$('dSetup').close();};
+$('method').onchange=saveCfg;
+
+// ------------------------------------------------------------------ console, apply, wifi
+function conLog(t){const o=$('conOut');o.textContent+=t+'\n';o.scrollTop=o.scrollHeight;}
+async function sendCmd(c){conLog('> '+c);try{const r=await api('/api/cmd',{c});conLog(r.out);return r.out;}catch(e){conLog('! '+e.message);throw e;}}
+$('bCon').onclick=()=>{$('dCon').showModal();$('conIn').focus();};
+$('bConClose').onclick=()=>$('dCon').close();
+$('bSend').onclick=async()=>{const c=$('conIn').value.trim();if(!c)return;$('conIn').value='';try{await sendCmd(c);}catch(e){}};
+$('conIn').onkeydown=e=>{if(e.key==='Enter')$('bSend').click();};
+$('bApply').onclick=async()=>{if(app.running){alert('Stop the measurement first.');return;}
+ const ch=+$('ch').value,mode=$('func').value;
+ if(['Ohm','RTD Pt100'].includes(mode)&&$('wires').value==='4'&&!(ch>=1&&ch<=10)){alert('4-wire measurement is only available on channels 1–10.');return;}
+ try{await api('/api/cmd',{c:'SCAN 0'});await api('/api/cmd',{c:'MON 0'});
+  const r1=await api('/api/cmd',{c:buildFunc(mode,$('range').value,$('wires').value,ch)});
+  if(!/=>\s*$/.test(r1.out))throw new Error(r1.out);
+  const r=await api('/api/cmd',{c:'FUNC? '+ch});$('cfg').textContent='Instrument: '+chLabel(ch)+' '+r.out.split('\n')[0];
+  setStatus('Configuration applied');}catch(e){setStatus('Error: '+e.message);}};
+$('bWifi').onclick=()=>{$('wSsid').value=app.dev&&!app.dev.ap?app.dev.ssid:'';$('wPass').value='';$('wMsg').textContent='';$('dWifi').showModal();};
+$('bWClose').onclick=()=>$('dWifi').close();
+$('bWSave').onclick=async()=>{const ssid=$('wSsid').value.trim();if(!ssid){$('wMsg').textContent='Enter the network name.';return;}
+ try{await api('/api/wifi',{ssid,pass:$('wPass').value});}catch(e){}
+ $('wMsg').textContent='Saved. The device is restarting: reconnect to your network and open http://hydra.local';};
+
+// ------------------------------------------------------------------ boot
+$('logo').src=document.querySelector('link[rel=icon]').href;
+modeChanged(false);loadCfg();poll();gauge.reset();
+</script>
+</body>
+</html>

@@ -95,6 +95,20 @@ Set the Hydra RS-232 interface to **9600 baud, 8 data bits, no parity, 1 stop bi
 Echo can be on or off: the command echo is stripped automatically. If the unit never answers,
 check the cable wiring (straight vs null-modem) against the Hydra user manual.
 
+## Hydra Web: control it from a browser
+
+<p align="center"><img src="docs/screenshots/web/web_multi.png" width="70%" alt="Hydra Web in the browser"></p>
+
+A Wemos D1 mini (Pro) with a MAX3232 on the Hydra's RS-232 port serves the same interface as a
+web page at **http://hydra.local**: readout, analog meter, chart, multi-channel, channel setup, CSV
+export and a command console, from any browser or phone. The acquisition runs on the ESP8266, so it
+keeps going with the browser closed.
+
+The board also exposes the serial line over WiFi: in this app choose the port
+`socket://hydra.local:2625` to use the desktop interface without a cable.
+
+Wiring, build, flashing and first setup: **[firmware/README.md](firmware/README.md)**.
+
 ## Try it without the instrument
 
 ```bash
@@ -137,6 +151,7 @@ The timestamp is the start of the scan; *Export CSV…* always uses the long for
 
 - [docs/USER_GUIDE.md](docs/USER_GUIDE.md): full description of the interface and of every mode
 - [docs/PROTOCOL.md](docs/PROTOCOL.md): the RS-232 commands used and how the software drives the instrument
+- [firmware/README.md](firmware/README.md): Hydra Web, the ESP8266 web interface and WiFi bridge
 
 ## Known limitations / to verify
 
