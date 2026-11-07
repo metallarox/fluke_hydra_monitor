@@ -20,6 +20,7 @@ interface as the desktop app.
   600 readings kept on the device.
 - **CSV export** from the page: all readings (long format) and, in multi-channel, one row per scan.
 - **Command console** to send raw commands to the Hydra — handy to check the Hydra-scan syntax.
+- **Serial debug page** with diagnosis, counters, live traffic and a loopback test.
 - **PC bridge**: the desktop app can connect over WiFi to `socket://hydra.local:2625`; while it is
   connected, web control is paused.
 - WiFi setup from the page, access point fallback with captive portal, mDNS name, OTA updates.
@@ -32,17 +33,37 @@ interface as the desktop app.
  ─────────────────            ──────────────────────          ──────────────────
  3V3  ─────────────────────── VCC
  GND  ─────────────────────── GND ─────────────────────────── pin 5  GND
- TX  (GPIO1)  ─────────────── T1IN      T1OUT ─────────────── RX of the Hydra
- RX  (GPIO3)  ─────────────── R1OUT     R1IN  ─────────────── TX of the Hydra
+ D8  (GPIO15) ─────────────── T1IN      T1OUT ─────────────── RX of the Hydra
+ D7  (GPIO13) ─────────────── R1OUT     R1IN  ─────────────── TX of the Hydra
  5V  ── supply (USB or a 5 V step-down from the Hydra's 9–16 V DC supply)
 ```
 
+- **Use D8/D7, not TX/RX.** TX/RX (GPIO1/GPIO3) are shared with the board's USB-serial chip: with the
+  converter on them, uploads fail (two outputs fight on RX) and the ESP8266 boot messages reach the
+  Hydra. The firmware moves UART0 to D8/D7 in hardware (`Serial.swap()`, `HYDRA_UART_SWAP 1`, the
+  default), so USB stays free and the link is just as fast and reliable as on TX/RX.
+- Prefer to keep TX/RX? Build with `HYDRA_UART_SWAP 0` and unplug the converter while flashing.
+- D8 must be low at boot: the D1 mini has a pull-down on it, which is fine with a MAX3232 input. If the
+  board does not start with the converter connected, check that the module has no strong pull-up on T1IN.
 - Power the MAX3232 from **3.3 V**, never 5 V: its outputs drive the ESP8266 pins directly.
-- If the Hydra never answers (*Hydra: no answer* on the page), swap the two data lines on the DB9 side
-  (null-modem).
-- With `HYDRA_UART_SWAP 1` in `config.h` the Hydra goes on **D8 (TX, GPIO15)** and **D7 (RX, GPIO13)**:
-  USB stays free for flashing and the boot messages of the ESP8266 do not reach the Hydra.
-  With the default (TX/RX pins), disconnect the RX wire if an upload over USB fails.
+- If the Hydra never answers, open the **debug page** (below): it tells you whether anything comes back
+  and has a loopback test for the board and the converter.
+
+## Serial debug page
+
+Open **http://hydra.local/debug** (or *Debug…* in the main page).
+
+<p align="center"><img src="../docs/screenshots/web/debug_bad.png" width="70%" alt="Serial debug page"></p>
+
+- **Diagnosis** in plain words: nothing ever received, bytes but no valid answer (baud/parity),
+  communication OK, commands refused with `?>`, lost answers.
+- **Serial link**: the pins in use, format, engine state; **counters** since boot (bytes, commands,
+  `=>`/`?>`/`!>`, timeouts, stray bytes) and the last byte / last good answer.
+- **Quick tests**: `*IDN?`, `FUNC? 0`, `MON?`, `SCAN?`, `INTVL?`, `TRIGGER?`, Ctrl-C and any command.
+- **Loopback test**: unplug the Hydra, bridge pins 2 and 3 of the converter's DB9 and run it: if the
+  probe comes back, ESP8266 and MAX3232 are fine and the problem is on the cable/Hydra side.
+- **Traffic**: the last 48 lines on the wire, live: sent, received, stray bytes, timeouts, with
+  `\r`, `\n` and `\xNN` for control bytes.
 
 ## Build and flash
 
@@ -111,6 +132,9 @@ python3 firmware/mock_server.py        # same API, simulated readings
 | GET/POST | `/api/config` | the channel setup (JSON, stored on the device) |
 | POST | `/api/wifi` | `ssid`, `pass` → saves and restarts |
 | POST | `/api/reboot` | — |
+| GET | `/api/debug?since=SEQ` | pins, counters and the traffic lines after SEQ |
+| POST | `/api/loopback` | sends a probe and reports what came back (`pass`, `bytes`, `recv`) |
+| POST | `/api/ctrlc` | sends Ctrl-C (0x03) to the Hydra |
 
 `t_ms` is the device's `millis()`; the page converts it with the `now` of the same answer.
 

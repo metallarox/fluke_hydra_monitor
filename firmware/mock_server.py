@@ -12,7 +12,6 @@ import argparse
 import base64
 import importlib.util
 import json
-import math
 import random
 import threading
 import time
@@ -21,7 +20,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 HERE = Path(__file__).resolve().parent
-PAGE = HERE / 'hydra_web' / 'web' / 'index.html'
+WEBDIR = HERE / 'hydra_web' / 'web'
 LOGO = HERE.parent / 'assets' / 'logo_64.png'
 spec = importlib.util.spec_from_file_location('sim', HERE.parent / 'tools' / 'hydra_simulator.py')
 sim = importlib.util.module_from_spec(spec)
@@ -41,6 +40,8 @@ class Device:
         self.msg, self.err, self.func_state = 'Ready', '', ''
         self.config = '{}'
         self.n = 0
+        self.dbg, self.dseq = [], 0
+        self.cnt = dict(txBytes=0, rxBytes=0, cmds=0, ok=0, synErr=0, exeErr=0, timeouts=0, stray=0, lastRx=0, lastOk=0)
         self.sig = argparse.Namespace(volts=0.012, amplitude=0.004, period=20.0)
         threading.Thread(target=self.engine, daemon=True).start()
 
@@ -51,7 +52,30 @@ class Device:
         v = sim.signal(self.funcs.get(ch, 'VDC'), ch, time.monotonic() - T0, self.sig)
         return v + random.gauss(0, abs(v) * 1e-4 + 1e-6)
 
+    def log(self, d, text):
+        self.dseq += 1
+        self.dbg.append((self.dseq, millis(), d, text))
+        del self.dbg[:-48]
+
+    def transact(self, cmd, answer):
+        """Record one command/answer pair like the firmware does (answer None = timeout)."""
+        self.cnt['cmds'] += 1
+        self.cnt['txBytes'] += len(cmd) + 1
+        self.log('T', cmd + '\\r')
+        if answer is None:
+            self.cnt['timeouts'] += 1
+            self.log('X', '')
+            return
+        self.cnt['rxBytes'] += len(answer) + 2
+        self.cnt['lastRx'] = millis()
+        self.log('R', answer.replace('\n', '\\n') + '\\n')
+        key = {'=': 'ok', '?': 'synErr', '!': 'exeErr'}[answer.strip()[-2]]
+        self.cnt[key] += 1
+        if key == 'ok':
+            self.cnt['lastOk'] = millis()
+
     def store(self, ch, v):
+        self.transact('MON_VAL?', ('+9.00000E+9' if v is None else f'{v:+.5E}') + '\n=>')
         self.seq += 1
         self.ring.append((self.seq, millis(), ch, v, self.scan))
         del self.ring[:-600]
@@ -62,6 +86,9 @@ class Device:
             time.sleep(0.02)
             with self.lock:
                 if not self.running or millis() < next_at:
+                    if not self.running and millis() - getattr(self, 'idn_at', -1e9) > 10000:
+                        self.idn_at = millis()
+                        self.transact('*IDN?', None if self.args.no_instrument else 'FLUKE,2625A,0,MOCK\n=>')
                     continue
                 chans = list(self.channels)
                 per_ch = 0.45 if self.mode == 'multi' and not self.hscan else 0.0
@@ -131,8 +158,8 @@ class Handler(BaseHTTPRequestHandler):
         u = urlparse(self.path)
         q = {k: v[0] for k, v in parse_qs(u.query).items()}
         d = self.dev
-        if u.path == '/':
-            html = PAGE.read_text(encoding='utf-8')
+        if u.path in ('/', '/debug'):
+            html = (WEBDIR / ('index.html' if u.path == '/' else 'debug.html')).read_text(encoding='utf-8')
             html = html.replace('{{LOGO}}', 'data:image/png;base64,' + base64.b64encode(LOGO.read_bytes()).decode())
             return self.send(200, html, 'text/html; charset=utf-8')
         with d.lock:
@@ -147,6 +174,13 @@ class Handler(BaseHTTPRequestHandler):
                                                                       for s, t, c, v, sc in items]}))
             if u.path == '/api/config':
                 return self.send(200, d.config)
+            if u.path == '/api/debug':
+                since = int(q.get('since', 0))
+                return self.send(200, json.dumps({
+                    'now': millis(), 'swap': True, 'txPin': 'D8 (GPIO15)', 'rxPin': 'D7 (GPIO13)', 'baud': 9600,
+                    'inst': not d.args.no_instrument, 'idn': '' if d.args.no_instrument else 'FLUKE,2625A,0,MOCK',
+                    'run': d.running, 'bridge': False, 'busy': False, 'queue': 0, 'cnt': d.cnt, 'seq': d.dseq,
+                    'lines': [list(x) for x in d.dbg if x[0] > since]}))
         self.send(404, '{"ok":false,"err":"not found"}')
 
     def do_POST(self):
@@ -165,6 +199,9 @@ class Handler(BaseHTTPRequestHandler):
                 if d.running:
                     return self.send(409, '{"ok":false,"err":"stop the measurement first"}')
                 c = q.get('c', '').strip().upper()
+                if d.args.no_instrument:
+                    d.transact(c, None)
+                    return self.send(200, json.dumps({'ok': True, 'out': '(no response)'}))
                 out = '=>'
                 if c == '*IDN?':
                     out = 'FLUKE,2625A,0,MOCK\n=>'
@@ -172,7 +209,15 @@ class Handler(BaseHTTPRequestHandler):
                     out = 'VDC,AUTO\n=>'
                 elif not c.split(' ')[0] in ('FUNC', 'MON', 'SCAN', 'INTVL', 'TRIGGER', 'LAST?', 'MON_VAL?', '*TRG'):
                     out = '?>'
+                d.transact(c, out)
                 return self.send(200, json.dumps({'ok': True, 'out': out}))
+            if u.path == '/api/loopback':
+                d.log('L', 'LOOPBACK-0123456789\\r')
+                d.log('R', 'LOOPBACK-0123456789\\n')
+                return self.send(200, json.dumps({'ok': True, 'pass': True, 'bytes': 20, 'recv': 'LOOPBACK-0123456789\\x0D'}))
+            if u.path == '/api/ctrlc':
+                d.log('T', '\\x03')
+                return self.send(200, '{"ok":true}')
             if u.path == '/api/config':
                 d.config = body if body.startswith('{') else '{}'
                 return self.send(200, '{"ok":true}')

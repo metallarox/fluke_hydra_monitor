@@ -21,7 +21,7 @@
 #include "config.h"
 #include "web_page.h"
 
-#define FW_VERSION "1.0.0"
+#define FW_VERSION "1.1.0"
 
 #if DEBUG_SERIAL1
 #define DBG(...) Serial1.printf(__VA_ARGS__)
@@ -75,7 +75,7 @@ struct Reading {
   uint16_t scan;
   int8_t ch;
 };
-const int RN = 600;
+const int RN = 500;
 Reading ring[RN];
 uint32_t lastSeq = 0;
 uint16_t scanId = 0;
@@ -109,6 +109,46 @@ bool bridgeActive = false;
 bool apMode = false;
 String consoleOut;
 bool consoleDone = false;
+
+// =============================================================== serial debug
+// Last DN lines of serial traffic and link counters, shown by the /debug page.
+struct DbgLine {
+  uint32_t seq;
+  uint32_t t;
+  char dir;          // T sent, R received, S stray bytes, X timeout, B bridge/info, L loopback
+  char text[59];
+};
+const int DN = 48;
+DbgLine dbg[DN];
+uint32_t dbgSeq = 0;
+struct Counters {
+  uint32_t txBytes, rxBytes, cmds, ok, synErr, exeErr, timeouts, stray, lastRx, lastOk;
+} cnt = {};
+
+void dbgAdd(char dir, const char *data, int len) {
+  dbgSeq++;
+  DbgLine &d = dbg[dbgSeq % DN];
+  d.seq = dbgSeq;
+  d.t = millis();
+  d.dir = dir;
+  const int cap = sizeof(d.text) - 1;
+  int o = 0, i = 0;
+  for (; i < len; i++) {
+    uint8_t c = data[i];
+    char e[5];
+    int n;
+    if (c == '\n') { e[0] = '\\'; e[1] = 'n'; n = 2; }
+    else if (c == '\r') { e[0] = '\\'; e[1] = 'r'; n = 2; }
+    else if (c >= 0x20 && c < 0x7f) { e[0] = c; n = 1; }
+    else n = snprintf(e, sizeof(e), "\\x%02X", c);
+    if (o + n > cap - 3) break;
+    memcpy(d.text + o, e, n);
+    o += n;
+  }
+  if (i < len) { memcpy(d.text + o, "...", 3); o += 3; }
+  d.text[o] = 0;
+}
+void dbgAdd(char dir, const String &s) { dbgAdd(dir, s.c_str(), s.length()); }
 
 // prototypes (also needed by the Arduino IDE in a few cases)
 void push(const char *cmd, uint8_t kind, int8_t ch, uint16_t timeout, bool setup);
@@ -355,10 +395,27 @@ void processQueue() {
     qCount--;
     if (cur.kind == K_SCANDONE) { scanId++; return; }
     if (cur.kind == K_DELAY) { inDelay = true; busy = true; delayUntil = now + cur.timeout; return; }
-    while (HY.available()) HY.read();
+    {                                           // bytes nobody asked for: noise, wrong baud, echo…
+      char stray[48];
+      int sn = 0;
+      while (HY.available()) {
+        char c = HY.read();
+        cnt.rxBytes++;
+        cnt.stray++;
+        if (sn < (int)sizeof(stray)) stray[sn++] = c;
+      }
+      if (sn) dbgAdd('S', stray, sn);
+    }
     rxLen = 0;
     HY.print(cur.cmd);
     HY.print('\r');
+    cnt.txBytes += strlen(cur.cmd) + 1;
+    cnt.cmds++;
+    {
+      char line[52];
+      int n = snprintf(line, sizeof(line), "%s\r", cur.cmd);
+      dbgAdd('T', line, min(n, (int)sizeof(line) - 1));
+    }
     txStart = now;
     busy = true;
     return;
@@ -369,6 +426,8 @@ void processQueue() {
   }
   while (HY.available()) {
     char c = HY.read();
+    cnt.rxBytes++;
+    cnt.lastRx = now;
     if (c == '\r') continue;
     if (rxLen < (int)sizeof(rx) - 1) rx[rxLen++] = c;
   }
@@ -378,9 +437,15 @@ void processQueue() {
   if (e >= 2 && rx[e - 1] == '>' && (rx[e - 2] == '=' || rx[e - 2] == '?' || rx[e - 2] == '!')) {
     char prompt[3] = {rx[e - 2], '>', 0};
     busy = false;
+    dbgAdd('R', rx, rxLen);
+    if (prompt[0] == '=') { cnt.ok++; cnt.lastOk = now; }
+    else if (prompt[0] == '?') cnt.synErr++;
+    else cnt.exeErr++;
     completeTransaction(prompt);
   } else if (now - txStart > cur.timeout) {
     busy = false;
+    cnt.timeouts++;
+    dbgAdd('X', rx, rxLen);                     // timeout: whatever arrived (maybe nothing)
     finishStep(false, "", "");
   }
 }
@@ -401,6 +466,7 @@ void bridgeLoop() {
       bridgeActive = true;
       while (HY.available()) HY.read();
       statusMsg = "PC bridge connected";
+      dbgAdd('B', String("PC bridge connected from ") + bridgeClient.remoteIP().toString());
       DBG("bridge on\n");
     }
   }
@@ -409,6 +475,7 @@ void bridgeLoop() {
     bridgeActive = false;
     bridgeClient.stop();
     statusMsg = "PC bridge closed";
+    dbgAdd('B', "PC bridge closed");
     lastIdnPoll = 0;
     DBG("bridge off\n");
     return;
@@ -418,10 +485,13 @@ void bridgeLoop() {
   while ((n = bridgeClient.available()) > 0) {
     n = bridgeClient.read(buf, min(n, sizeof(buf)));
     HY.write(buf, n);
+    cnt.txBytes += n;
   }
   while ((n = HY.available()) > 0) {
     n = HY.readBytes(buf, min(n, sizeof(buf)));
     bridgeClient.write(buf, n);
+    cnt.rxBytes += n;
+    cnt.lastRx = millis();
   }
 }
 
@@ -565,6 +635,88 @@ void handleReboot() {
   ESP.restart();
 }
 
+void handleDebugPage() {
+  server.sendHeader("Content-Encoding", "gzip");
+  server.sendHeader("Cache-Control", "no-cache");
+  server.send_P(200, "text/html", (PGM_P)DEBUG_PAGE_GZ, DEBUG_PAGE_GZ_LEN);
+}
+
+void handleDebug() {
+  uint32_t since = server.hasArg("since") ? strtoul(server.arg("since").c_str(), nullptr, 10) : 0;
+  String j;
+  j.reserve(4200);
+  j = "{\"now\":" + String(millis());
+#if HYDRA_UART_SWAP
+  j += ",\"swap\":true,\"txPin\":\"D8 (GPIO15)\",\"rxPin\":\"D7 (GPIO13)\"";
+#else
+  j += ",\"swap\":false,\"txPin\":\"TX (GPIO1)\",\"rxPin\":\"RX (GPIO3)\"";
+#endif
+  j += ",\"baud\":" + String(HYDRA_BAUD);
+  j += ",\"inst\":" + String(instOk ? "true" : "false");
+  j += ",\"idn\":\"" + jsonEsc(idn) + "\"";
+  j += ",\"run\":" + String(S.running ? "true" : "false");
+  j += ",\"bridge\":" + String(bridgeActive ? "true" : "false");
+  j += ",\"busy\":" + String(busy ? "true" : "false");
+  j += ",\"queue\":" + String(qCount);
+  j += ",\"cnt\":{\"txBytes\":" + String(cnt.txBytes) + ",\"rxBytes\":" + String(cnt.rxBytes) +
+       ",\"cmds\":" + String(cnt.cmds) + ",\"ok\":" + String(cnt.ok) + ",\"synErr\":" + String(cnt.synErr) +
+       ",\"exeErr\":" + String(cnt.exeErr) + ",\"timeouts\":" + String(cnt.timeouts) +
+       ",\"stray\":" + String(cnt.stray) + ",\"lastRx\":" + String(cnt.lastRx) + ",\"lastOk\":" + String(cnt.lastOk) + "}";
+  j += ",\"seq\":" + String(dbgSeq) + ",\"lines\":[";
+  uint32_t first = dbgSeq > DN - 1 ? dbgSeq - (DN - 1) : 1;
+  if (since + 1 > first) first = since + 1;
+  bool firstItem = true;
+  for (uint32_t s = first; s <= dbgSeq; s++) {
+    const DbgLine &d = dbg[s % DN];
+    if (d.seq != s) continue;
+    if (!firstItem) j += ',';
+    firstItem = false;
+    j += "[" + String(d.seq) + "," + String(d.t) + ",\"" + String(d.dir) + "\",\"" + jsonEsc(d.text) + "\"]";
+  }
+  j += "]}";
+  sendJson(200, j);
+}
+
+// Loopback: with the Hydra unplugged and pins 2–3 of the DB9 bridged, what we send must come back.
+void handleLoopback() {
+  if (bridgeActive || S.running) { sendJson(409, "{\"ok\":false,\"err\":\"stop the measurement / PC bridge first\"}"); return; }
+  uint32_t t0 = millis();
+  while (busy && millis() - t0 < 5000) { processQueue(); yield(); }
+  while (HY.available()) { HY.read(); cnt.rxBytes++; cnt.stray++; }
+  const char *probe = "LOOPBACK-0123456789\r";
+  HY.print(probe);
+  cnt.txBytes += strlen(probe);
+  dbgAdd('L', probe, strlen(probe));
+  char got[64];
+  int n = 0;
+  t0 = millis();
+  while (millis() - t0 < 400) {
+    while (HY.available() && n < (int)sizeof(got) - 1) { got[n++] = HY.read(); cnt.rxBytes++; cnt.lastRx = millis(); }
+    yield();
+  }
+  got[n] = 0;
+  dbgAdd('R', got, n);
+  bool pass = strstr(got, "LOOPBACK-0123456789") != nullptr;
+  char esc[200];
+  int o = 0;
+  for (int i = 0; i < n && o < (int)sizeof(esc) - 6; i++) {
+    uint8_t c = got[i];
+    if (c >= 0x20 && c < 0x7f && c != '"' && c != '\\') esc[o++] = c;
+    else o += snprintf(esc + o, sizeof(esc) - o, "\\\\x%02X", c);
+  }
+  esc[o] = 0;
+  sendJson(200, String("{\"ok\":true,\"pass\":") + (pass ? "true" : "false") + ",\"bytes\":" + String(n) +
+                    ",\"recv\":\"" + esc + "\"}");
+}
+
+void handleCtrlC() {
+  if (bridgeActive) { sendJson(409, "{\"ok\":false,\"err\":\"PC bridge in use\"}"); return; }
+  HY.write((uint8_t)0x03);
+  cnt.txBytes++;
+  dbgAdd('T', "\x03", 1);
+  sendJson(200, "{\"ok\":true}");
+}
+
 void handleNotFound() {
   if (apMode) {                         // captive portal: send everything to the page
     server.sendHeader("Location", "http://" + WiFi.softAPIP().toString() + "/");
@@ -630,6 +782,10 @@ void setup() {
   server.on("/api/config", HTTP_POST, handleConfigPost);
   server.on("/api/wifi", HTTP_POST, handleWifiPost);
   server.on("/api/reboot", HTTP_POST, handleReboot);
+  server.on("/debug", HTTP_GET, handleDebugPage);
+  server.on("/api/debug", HTTP_GET, handleDebug);
+  server.on("/api/loopback", HTTP_POST, handleLoopback);
+  server.on("/api/ctrlc", HTTP_POST, handleCtrlC);
   server.onNotFound(handleNotFound);
   server.begin();
   bridgeServer.begin();
@@ -644,6 +800,7 @@ void setup() {
   delay(200);
   HY.write((uint8_t)0x03);
   HY.flush();
+  dbgAdd('B', "boot: Ctrl-C sent");
   delay(300);
   while (HY.available()) HY.read();
   push("*IDN?", K_IDN, -1, 3500, false);

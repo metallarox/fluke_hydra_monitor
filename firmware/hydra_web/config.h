@@ -17,11 +17,12 @@
 #define OTA_PASSWORD   ""              // empty = OTA without password
 
 // ---- Serial link to the Hydra (through the MAX3232) -------------------------
-// 0 = hardware TX/RX pins (GPIO1/GPIO3). Disconnect the MAX3232 RX line while
-//     flashing over USB if the upload fails.
-// 1 = swapped UART0: TX on D8 (GPIO15), RX on D7 (GPIO13). USB stays free for
-//     flashing and the boot messages do not reach the Hydra.
-#define HYDRA_UART_SWAP 0
+// 1 = swapped UART0 (recommended): TX on D8 (GPIO15), RX on D7 (GPIO13).
+//     The USB port stays free for flashing and the ESP8266 boot messages do
+//     not reach the Hydra.
+// 0 = hardware TX/RX pins (GPIO1/GPIO3), shared with the USB-serial chip:
+//     the MAX3232 must be disconnected while flashing over USB.
+#define HYDRA_UART_SWAP 1
 #define HYDRA_BAUD      9600
 
 // Optional debug log on Serial1 (TX only, pin D4 / GPIO2, 115200 baud).
