@@ -1,9 +1,12 @@
-# Publishes a GitHub Release with the ready-to-use files when a version tag is pushed:
-#   git tag v1.2.0 && git push origin v1.2.0
+# Publishes a GitHub Release with the ready-to-use files.
+# Runs when VERSION changes on main (edit it, commit, push) or by hand from the Actions tab.
+# The tag v<VERSION> is created by the release step; if it already exists nothing new is published.
 name: release
 on:
   push:
-    tags: ['v*']
+    branches: [main]
+    paths: [VERSION]
+  workflow_dispatch:
 permissions:
   contents: write
 jobs:
@@ -11,10 +14,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Read version
+        id: v
+        run: echo "version=$(tr -d '[:space:]' < VERSION)" >> "$GITHUB_OUTPUT"
+      - name: Skip if the release exists
+        id: exists
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "v${{ steps.v.outputs.version }}" >/dev/null 2>&1; then echo "yes=1" >> "$GITHUB_OUTPUT"; fi
       - uses: softprops/action-gh-release@v2
+        if: steps.exists.outputs.yes != '1'
         with:
-          name: ${{ github.ref_name }} · Desktop · Hydra Web · GPIB plate
+          tag_name: v${{ steps.v.outputs.version }}
+          target_commitish: ${{ github.sha }}
+          name: v${{ steps.v.outputs.version }} · Desktop · Hydra Web · GPIB plate
           body_path: RELEASE_NOTES.md
+          make_latest: true
           files: |
             fluke_hydra_monitor.py
             firmware/bin/*.bin
