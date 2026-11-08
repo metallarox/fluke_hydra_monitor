@@ -1,0 +1,284 @@
+# -*- coding: utf-8 -*-
+"""Hydra Web plate — a thin mount for a Wemos D1 mini (Pro) on the unused IEEE-488 (GPIB)
+opening of a Fluke Hydra 2620A/2625A.
+
+* a plate screwed through the two GPIB holes, lying flat on the panel;
+* on its back, a TONGUE shaped like the GPIB slot that fits inside it (structure + alignment);
+  the tongue is hollow: the mini MAX3232 module stands on edge in that pocket, inside the slot;
+* the Wemos lies on the outside, parallel to the slot, held by a low cover that is clamped by the
+  same two screws.
+
+Run it
+  * in FreeCAD:  Macro → Macros… → select this file → Execute (builds Plate and Cover;
+                 edit the numbers below and run again)
+  * with CadQuery (pip install cadquery):  python3 hydra_wemos_plate.FCMacro
+                 -> writes STEP and print-oriented STL files next to this file
+
+Coordinates (mm): origin at the centre of the GPIB slot on the panel surface,
++X along the slot towards the RS-232 DB9, +Z out of the panel.
+
+https://github.com/metallarox/fluke_hydra_monitor  ·  IV3HGA
+"""
+
+# =====================================================================================
+# PARAMETERS — measure the ones marked (*) with a caliper before printing
+# =====================================================================================
+P = dict(
+    # --- panel ----------------------------------------------------------------------
+    gpib_pitch=47.04,      # (*) distance between the two GPIB holes (IEEE-488 standard)
+    slot_len=36.0,         # (*) length of the GPIB slot, at its narrowest
+    slot_w=12.0,           # (*) width of the GPIB slot, at its narrowest
+    slot_r=2.0,            #     corner radius of the slot
+    panel_t=1.5,           # (*) panel thickness
+    fit_clear=0.20,        #     tongue-to-slot clearance per side (0.15 tighter, 0.3 looser)
+    # --- plate ----------------------------------------------------------------------
+    plate_len=59.0,
+    plate_w=32.0,          # (*) free space across the slot (option bay on one side)
+    plate_dy=0.0,          #     shift of the plate across the slot
+    plate_t=2.5,
+    plate_r=3.0,
+    screw_hole_d=3.4,      # M3 clearance
+    # --- tongue / MAX3232 pocket (inside the slot) ----------------------------------
+    tongue_depth=16.0,     # (*) how far it goes into the instrument from the panel surface
+    tongue_wall=1.2,
+    tongue_end=1.2,
+    module_l=21.5,         # (*) mini MAX3232 board (stands on edge in the pocket)
+    module_w=13.5,         # (*)
+    module_t=4.5,          #     board + chip + solder/wires
+    inner_wire_hole=4.0,   # hole in the tongue end: RS-232 wires to the DB9 from inside (0 = none)
+    # --- Wemos D1 mini (Pro) --------------------------------------------------------
+    wemos_l=34.2, wemos_w=25.6, wemos_t=1.0,
+    wemos_parts_top=3.4,   # ESP-12 module height above the board
+    wemos_lift=3.0,        # board bottom above the plate (USB + CH340 are underneath)
+    pad=2.6,               # corner pads under the board
+    frame_wall=1.4, frame_clear=0.25,
+    # --- cover ----------------------------------------------------------------------
+    cover=True,
+    cover_wall=1.3, cover_top=1.4, cover_gap=0.8, cover_flange=2.0, cover_clear=0.2,
+    side_notch_w=6.0, side_notch_h=3.0,     # wire exit towards the DB9 (+X end)
+    usb_opening=False,     # opening at the -X end for a micro-USB plug (needs more lift)
+    text="IV3HGA", text_depth=0.5,
+)
+
+
+# =====================================================================================
+# geometry backends: FreeCAD (Part) or CadQuery — same OpenCascade kernel
+# =====================================================================================
+try:
+    import FreeCAD as App
+    import Part
+    BACKEND = 'freecad'
+except ImportError:
+    import cadquery as cq
+    BACKEND = 'cadquery'
+
+
+def box(x0, y0, z0, x1, y1, z1):
+    x0, x1 = min(x0, x1), max(x0, x1)
+    y0, y1 = min(y0, y1), max(y0, y1)
+    z0, z1 = min(z0, z1), max(z0, z1)
+    if BACKEND == 'freecad':
+        return Part.makeBox(x1 - x0, y1 - y0, z1 - z0, App.Vector(x0, y0, z0))
+    return cq.Solid.makeBox(x1 - x0, y1 - y0, z1 - z0, pnt=cq.Vector(x0, y0, z0))
+
+
+def cyl(x, y, z0, z1, d):
+    if BACKEND == 'freecad':
+        return Part.makeCylinder(d / 2, z1 - z0, App.Vector(x, y, z0), App.Vector(0, 0, 1))
+    return cq.Solid.makeCylinder(d / 2, z1 - z0, pnt=cq.Vector(x, y, z0), dir=cq.Vector(0, 0, 1))
+
+
+def cone(x, y, z0, z1, d0, d1):
+    if BACKEND == 'freecad':
+        return Part.makeCone(d0 / 2, d1 / 2, z1 - z0, App.Vector(x, y, z0), App.Vector(0, 0, 1))
+    return cq.Solid.makeCone(d0 / 2, d1 / 2, z1 - z0, pnt=cq.Vector(x, y, z0), dir=cq.Vector(0, 0, 1))
+
+
+def rbox(x0, y0, z0, x1, y1, z1, r):
+    """Box with rounded vertical edges."""
+    x0, x1 = min(x0, x1), max(x0, x1)
+    y0, y1 = min(y0, y1), max(y0, y1)
+    r = min(r, (x1 - x0) / 2 - 1e-3, (y1 - y0) / 2 - 1e-3)
+    if r <= 0.01:
+        return box(x0, y0, z0, x1, y1, z1)
+    return union([box(x0 + r, y0, z0, x1 - r, y1, z1), box(x0, y0 + r, z0, x1, y1 - r, z1)] +
+                 [cyl(cx, cy, z0, z1, 2 * r) for cx in (x0 + r, x1 - r) for cy in (y0 + r, y1 - r)])
+
+
+def crect(cx, cy, lx, ly, z0, z1, r):
+    return rbox(cx - lx / 2, cy - ly / 2, z0, cx + lx / 2, cy + ly / 2, z1, r)
+
+
+def union(shapes):
+    s = shapes[0]
+    for t in shapes[1:]:
+        s = s.fuse(t)
+    return clean(s)
+
+
+def cut(s, tools):
+    for t in tools:
+        s = s.cut(t)
+    return clean(s)
+
+
+def clean(s):
+    if BACKEND == 'freecad':
+        try:
+            return s.removeSplitter()
+        except Exception:
+            return s
+    return s.clean()
+
+
+def text_solid(txt, size, x, y, z0, h):
+    """Extruded text centred at (x, y). None if no font is available."""
+    if not txt:
+        return None
+    if BACKEND == 'cadquery':
+        t = cq.Workplane('XY').workplane(offset=z0).text(txt, size, h, combine=False, halign='center',
+                                                         valign='center', font='Sans')
+        return t.val().translate(cq.Vector(x, y, 0))
+    import os
+    fonts = ['/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf', '/usr/share/fonts/TTF/DejaVuSans-Bold.ttf',
+             'C:/Windows/Fonts/arialbd.ttf', '/Library/Fonts/Arial Bold.ttf',
+             '/System/Library/Fonts/Supplemental/Arial Bold.ttf']
+    font = next((f for f in fonts if os.path.exists(f)), None)
+    if font is None:
+        return None
+    try:
+        wires = Part.makeWireString(txt, font, size, 0)
+        comp = Part.Compound([Part.makeFace(ch, 'Part::FaceMakerBullseye') for ch in wires if ch])
+        bb = comp.BoundBox
+        comp.translate(App.Vector(x - bb.Center.x, y - bb.Center.y, z0))
+        return comp.extrude(App.Vector(0, 0, h))
+    except Exception:
+        return None
+
+
+# =====================================================================================
+# model
+# =====================================================================================
+def derived(p):
+    d = dict(p)
+    d['hx'] = p['gpib_pitch'] / 2                                   # screw holes at ±hx
+    d['tl'] = p['slot_len'] - 2 * p['fit_clear']                    # tongue outer
+    d['tw'] = p['slot_w'] - 2 * p['fit_clear']
+    d['pl'] = d['tl'] - 2 * p['tongue_wall']                        # pocket
+    d['pw'] = d['tw'] - 2 * p['tongue_wall']
+    d['zp'] = p['plate_t']                                          # plate front face
+    d['zb'] = d['zp'] + p['wemos_lift']                             # Wemos board bottom
+    d['zt'] = d['zb'] + p['wemos_t'] + p['wemos_parts_top']         # highest part
+    fl = p['wemos_l'] + 2 * p['frame_clear']
+    fw = p['wemos_w'] + 2 * p['frame_clear']
+    d['frame_in'] = (fl, fw)
+    d['frame_out'] = (fl + 2 * p['frame_wall'], fw + 2 * p['frame_wall'])
+    d['dome_in'] = (d['frame_out'][0] + 2 * p['cover_clear'], d['frame_out'][1] + 2 * p['cover_clear'])
+    d['dome_out'] = (d['dome_in'][0] + 2 * p['cover_wall'], d['dome_in'][1] + 2 * p['cover_wall'])
+    d['z_cover_top'] = d['zt'] + p['cover_gap'] + p['cover_top']
+    d['pads'] = [(sx * (p['wemos_l'] / 2 - p['pad'] / 2 - 0.3), sy * (p['wemos_w'] / 2 - p['pad'] / 2 - 0.3))
+                 for sx in (-1, 1) for sy in (-1, 1)]
+    return d
+
+
+def make_plate(p):
+    d = derived(p)
+    zp, dy = d['zp'], p['plate_dy']
+    plate = crect(0, dy, p['plate_len'], p['plate_w'], 0, zp, p['plate_r'])
+    tongue = crect(0, 0, d['tl'], d['tw'], -p['tongue_depth'], 0.01, max(0.3, p['slot_r'] - p['fit_clear']))
+    fo, fi = d['frame_out'], d['frame_in']
+    frame_h = d['zb'] + p['wemos_t']                    # board top flush with the frame top
+    frame = cut(crect(0, 0, fo[0], fo[1], zp - 0.01, frame_h, 1.5), [crect(0, 0, fi[0], fi[1], zp, frame_h + 1, 0.6)])
+    pads = [box(x - p['pad'] / 2, y - p['pad'] / 2, zp - 0.01, x + p['pad'] / 2, y + p['pad'] / 2, d['zb'])
+            for x, y in d['pads']]
+    body = union([plate, tongue, frame] + pads)
+    cuts = [
+        # pocket for the MAX3232, open at the front (through the plate), closed at the far end
+        crect(0, 0, d['pl'], d['pw'], -p['tongue_depth'] + p['tongue_end'], zp + 1, 0.8),
+        # wire gaps in the frame: towards the DB9 (+X) and on both long sides
+        box(fo[0] / 2 - p['frame_wall'] - 0.5, -p['side_notch_w'] / 2, zp, fo[0] / 2 + 0.5, p['side_notch_w'] / 2, frame_h + 1),
+        box(-6, -fo[1] / 2 - 0.5, zp + 0.8, 6, fo[1] / 2 + 0.5, frame_h + 1),
+    ]
+    if p['inner_wire_hole'] > 0:
+        cuts.append(cyl(d['pl'] / 2 - 3, 0, -p['tongue_depth'] - 1, -p['tongue_depth'] + p['tongue_end'] + 0.01,
+                        p['inner_wire_hole']))
+    for sx in (-1, 1):
+        cuts.append(cyl(sx * d['hx'], 0, -1, zp + 1, p['screw_hole_d']))
+        if not p['cover']:
+            cuts.append(cone(sx * d['hx'], 0, zp - 1.75, zp + 0.01, p['screw_hole_d'], 6.3))
+    return cut(body, cuts)
+
+
+def make_cover(p):
+    d = derived(p)
+    zp, z1 = d['zp'], d['z_cover_top']
+    do, di = d['dome_out'], d['dome_in']
+    fl = zp + p['cover_flange']
+    solid = union([crect(0, p['plate_dy'], p['plate_len'], p['plate_w'], zp, fl, p['plate_r']),
+                   crect(0, 0, do[0], do[1], zp, z1, 2.0)])
+    cuts = [crect(0, 0, di[0], di[1], zp - 1, z1 - p['cover_top'], 1.2),
+            # wire / power exit towards the DB9 (+X end)
+            box(di[0] / 2 - 0.5, -p['side_notch_w'] / 2, zp - 1, do[0] / 2 + 1, p['side_notch_w'] / 2, zp + p['side_notch_h'])]
+    if p['usb_opening']:
+        cuts.append(box(-do[0] / 2 - 1, -5.5, zp - 1, -di[0] / 2 + 0.5, 5.5, d['zb'] + 3))
+    for sx in (-1, 1):
+        cuts.append(cyl(sx * d['hx'], 0, zp - 1, fl + 1, p['screw_hole_d']))
+        cuts.append(cone(sx * d['hx'], 0, fl - 1.75, fl + 0.01, p['screw_hole_d'], 6.3))
+    cover = cut(solid, cuts)
+    # posts that press the four corners of the board down
+    posts = [box(x - 1.2, y - 1.2, d['zb'] + p['wemos_t'] + 0.1, x + 1.2, y + 1.2, z1 - p['cover_top'] + 0.01)
+             for x, y in d['pads']]
+    cover = union([cover] + posts)
+    t = text_solid(p['text'], 5.0, 0, 0, z1 - p['text_depth'], p['text_depth'] + 1)
+    if t is not None:
+        cover = cut(cover, [t])
+    return cover
+
+
+# =====================================================================================
+# run
+# =====================================================================================
+def run_freecad():
+    doc = App.newDocument('HydraWemosPlate')
+    o = doc.addObject('Part::Feature', 'Plate')
+    o.Shape = make_plate(P)
+    if P['cover']:
+        c = doc.addObject('Part::Feature', 'Cover')
+        c.Shape = make_cover(P)
+    doc.recompute()
+    try:
+        import FreeCADGui as Gui
+        if P['cover']:
+            c.ViewObject.Transparency = 60
+        Gui.SendMsgToActiveView('ViewFit')
+        Gui.activeDocument().activeView().viewIsometric()
+    except Exception:
+        pass
+    App.Console.PrintMessage('Hydra Wemos plate built. Export Plate/Cover with File → Export (STEP/STL).\n')
+
+
+def run_cadquery(outdir=None):
+    import os
+    outdir = outdir or os.path.dirname(os.path.abspath(__file__))
+    plate = make_plate(P)
+    shapes = [plate]
+    # print orientations: plate standing on the tongue end (supports under the plate ring),
+    # cover upside down on its top face
+    plate_print = plate.translate(cq.Vector(0, 0, P['tongue_depth']))
+    cq.exporters.export(cq.Workplane().add(plate_print), os.path.join(outdir, 'hydra_wemos_plate.stl'),
+                        tolerance=0.02, angularTolerance=0.1)
+    if P['cover']:
+        cover = make_cover(P)
+        shapes.append(cover)
+        z1 = derived(P)['z_cover_top']
+        cover_print = cover.rotate(cq.Vector(0, 0, 0), cq.Vector(1, 0, 0), 180).translate(cq.Vector(0, 0, z1))
+        cq.exporters.export(cq.Workplane().add(cover_print), os.path.join(outdir, 'hydra_wemos_plate_cover.stl'),
+                            tolerance=0.02, angularTolerance=0.1)
+    cq.exporters.export(cq.Workplane().add(cq.Compound.makeCompound(shapes)), os.path.join(outdir, 'hydra_wemos_plate.step'))
+    print('written to', outdir, '· thickness outside the panel: %.1f mm' % derived(P)['z_cover_top'])
+
+
+if BACKEND == 'freecad':
+    run_freecad()
+elif __name__ == '__main__':
+    run_cadquery()
