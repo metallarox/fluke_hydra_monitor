@@ -70,6 +70,8 @@ STL files.
 
 ## Assembly
 
+<p align="center"><img src="img/assembly.gif" width="70%" alt="Assembly, cutaway: MAX3232 into the tongue pocket, Wemos on its pads, cover"></p>
+
 1. Solder the wires: Wemos **3V3, GND, D8 → TX-in, D7 ← RX-out** of the MAX3232; on the RS-232 side
    **TX, RX, GND** to a DB9 female for the Hydra's RS-232 port (or, from inside the instrument,
    through the hole at the end of the tongue).
