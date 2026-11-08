@@ -18,6 +18,8 @@ A thin printed mount for the [Hydra Web](../../firmware/README.md) board that us
 
 Nothing is drilled and nothing changes on the instrument.
 
+**Rotate it in 3D:** [interactive views](3D.md) · [assembly](preview/assembly.stl) · [exploded](preview/exploded.stl) — GitHub opens STL files in a 3D viewer (drag to rotate, scroll to zoom). All files are also in the [latest release](https://github.com/metallarox/fluke_hydra_monitor/releases/latest).
+
 ## Files
 
 | File | What |
@@ -26,6 +28,7 @@ Nothing is drilled and nothing changes on the instrument.
 | `hydra_wemos_plate.step` | plate + cover, to open in FreeCAD (or any CAD) |
 | `hydra_wemos_plate.stl` | plate, in print orientation (standing on the tongue) |
 | `hydra_wemos_plate_cover.stl` | cover, in print orientation (top face on the bed) |
+| `3D.md`, `preview/` | light models for the 3D viewer; `preview/make_previews.py` regenerates them |
 
 ## Before printing: measure (caliper)
 

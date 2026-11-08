@@ -18,8 +18,10 @@ opening and holds the mini MAX3232 module; the Wemos sits outside under a low co
 
 | | |
 |---|---|
+| **3D, rotate with the mouse** | [**interactive 3D views**](gpib_plate/3D.md) · [assembly](gpib_plate/preview/assembly.stl) · [exploded](gpib_plate/preview/exploded.stl) · [plate](gpib_plate/hydra_wemos_plate.stl) · [cover](gpib_plate/hydra_wemos_plate_cover.stl) |
 | Model | [`hydra_wemos_plate.FCMacro`](gpib_plate/hydra_wemos_plate.FCMacro) — parametric, runs in FreeCAD or with CadQuery |
 | CAD | [`hydra_wemos_plate.step`](gpib_plate/hydra_wemos_plate.step) |
 | Print | [`hydra_wemos_plate.stl`](gpib_plate/hydra_wemos_plate.stl), [`hydra_wemos_plate_cover.stl`](gpib_plate/hydra_wemos_plate_cover.stl) (print-oriented) |
 | Hardware | 2 × M3 × 10 countersunk + nuts, Wemos D1 mini (Pro), mini MAX3232 module |
 | Instructions | [measurements to check, printing, assembly](gpib_plate/README.md) |
+| Download | all files in the [latest release](https://github.com/metallarox/fluke_hydra_monitor/releases/latest) |

@@ -122,7 +122,7 @@ A printed mount that uses the **unused IEEE-488 (GPIB) opening** on the back pan
 screwed through the two GPIB holes, a tongue shaped like the slot that fits inside it and holds the
 mini MAX3232 module, and the Wemos outside under a low cover. 12 mm outside the panel, nothing
 drilled, fully reversible. Parametric FreeCAD model, STEP and print-ready STL:
-**[hardware/](hardware/README.md)**.
+**[hardware/](hardware/README.md)** · [**rotate it in 3D**](hardware/gpib_plate/3D.md) · [downloads](https://github.com/metallarox/fluke_hydra_monitor/releases/latest).
 
 ## Try it without the instrument
 
