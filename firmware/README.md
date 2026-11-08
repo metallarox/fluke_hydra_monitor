@@ -67,11 +67,11 @@ Open **http://hydra.local/debug** (or *Debug…* in the main page).
 
 ### A mount on the back of the Hydra
 
-[`hardware/wemos_case`](../hardware/wemos_case/README.md) is a thin printed plate for the unused GPIB
+[`hardware/gpib_plate`](../hardware/gpib_plate/README.md) is a thin printed plate for the unused GPIB
 opening: a tongue enters the slot and holds the MAX3232, the Wemos sits outside under a low cover
 (FreeCAD macro, STEP and STL).
 
-<p align="center"><img src="../hardware/wemos_case/img/exploded.png" width="45%" alt="Hydra Web plate"></p>
+<p align="center"><img src="../hardware/gpib_plate/img/exploded.png" width="45%" alt="Hydra Web plate"></p>
 
 ## Build and flash
 

@@ -1,4 +1,4 @@
-# Hydra Web plate — Wemos D1 mini on the GPIB opening
+# GPIB plate — Wemos D1 mini on the Hydra's IEEE-488 opening
 
 A thin printed mount for the [Hydra Web](../../firmware/README.md) board that uses the
 **unused IEEE-488 (GPIB) opening** on the back of the Hydra 2620A/2625A:

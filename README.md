@@ -108,7 +108,21 @@ The board also exposes the serial line over WiFi: in this app choose the port
 `socket://hydra.local:2625` to use the desktop interface without a cable.
 
 Wiring, build, flashing and first setup: **[firmware/README.md](firmware/README.md)**.
-A thin printed plate that mounts it on the unused GPIB opening: **[hardware/wemos_case](hardware/wemos_case/README.md)**.
+The board mounts on the back of the Hydra with the printed plate described below.
+
+## Hardware: Wemos on the GPIB opening
+
+<p align="center">
+  <img src="hardware/gpib_plate/img/mounted.png" width="32%" alt="Plate mounted on the Hydra">
+  <img src="hardware/gpib_plate/img/exploded.png" width="32%" alt="Exploded view">
+  <img src="hardware/gpib_plate/img/assembly.gif" width="32%" alt="Assembly, cutaway">
+</p>
+
+A printed mount that uses the **unused IEEE-488 (GPIB) opening** on the back panel: a 2.5 mm plate
+screwed through the two GPIB holes, a tongue shaped like the slot that fits inside it and holds the
+mini MAX3232 module, and the Wemos outside under a low cover. 12 mm outside the panel, nothing
+drilled, fully reversible. Parametric FreeCAD model, STEP and print-ready STL:
+**[hardware/](hardware/README.md)**.
 
 ## Try it without the instrument
 
@@ -153,6 +167,18 @@ The timestamp is the start of the scan; *Export CSV…* always uses the long for
 - [docs/USER_GUIDE.md](docs/USER_GUIDE.md): full description of the interface and of every mode
 - [docs/PROTOCOL.md](docs/PROTOCOL.md): the RS-232 commands used and how the software drives the instrument
 - [firmware/README.md](firmware/README.md): Hydra Web, the ESP8266 web interface and WiFi bridge
+- [hardware/README.md](hardware/README.md): printed parts (GPIB plate for the Wemos)
+
+## Repository layout
+
+```
+fluke_hydra_monitor.py      desktop app (Linux, Tkinter)
+tools/hydra_simulator.py    serial simulator of the Hydra
+firmware/                   Hydra Web: ESP8266 firmware, web page, mock server
+hardware/                   printed parts: GPIB plate for the Wemos
+docs/                       user guide, protocol notes, screenshots
+assets/                     logo
+```
 
 ## Known limitations / to verify
 
