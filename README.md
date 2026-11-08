@@ -108,6 +108,7 @@ The board also exposes the serial line over WiFi: in this app choose the port
 `socket://hydra.local:2625` to use the desktop interface without a cable.
 
 Wiring, build, flashing and first setup: **[firmware/README.md](firmware/README.md)**.
+A printed case that mounts on the unused GPIB opening: **[hardware/wemos_case](hardware/wemos_case/README.md)**.
 
 ## Try it without the instrument
 

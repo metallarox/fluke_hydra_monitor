@@ -65,6 +65,13 @@ Open **http://hydra.local/debug** (or *Debug…* in the main page).
 - **Traffic**: the last 48 lines on the wire, live: sent, received, stray bytes, timeouts, with
   `\r`, `\n` and `\xNN` for control bytes.
 
+### A box on the back of the Hydra
+
+[`hardware/wemos_case`](../hardware/wemos_case/README.md) is a printed case that screws into the unused
+GPIB opening and plugs the MAX3232 straight into the RS-232 port (FreeCAD macro, STEP and STL).
+
+<p align="center"><img src="../hardware/wemos_case/img/closed.png" width="45%" alt="Hydra Web case"></p>
+
 ## Build and flash
 
 ### Arduino IDE
