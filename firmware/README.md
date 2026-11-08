@@ -85,6 +85,13 @@ opening: a tongue enters the slot and holds the MAX3232, the Wemos sits outside 
    (the default, e.g. *16MB (FS:14MB OTA:~1019KB)*).
 4. Edit `config.h` if you like (WiFi, pins), then **Upload**.
 
+### Ready-made binaries
+
+`firmware/bin/` (and every [release](https://github.com/metallarox/fluke_hydra_monitor/releases/latest))
+has the firmware already built for the D1 mini Pro with the default `config.h`:
+`…_D7-D8.bin` (recommended wiring) and `…_TX-RX.bin`. Flash with
+`esptool.py --port /dev/ttyUSB0 write_flash 0x0 hydra_web_….bin`.
+
 ### PlatformIO
 
 ```bash
